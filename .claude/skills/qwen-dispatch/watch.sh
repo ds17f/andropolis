@@ -14,20 +14,24 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 LOGDIR="$REPO/tasks/logs"
 arg="${1:-}"
 
+# No arg: follow the stable "current" stream, so ONE watcher keeps flowing as new
+# dispatches start. A session id or path: follow that specific run.
 if [[ -z "$arg" ]]; then
-  LOG="$(ls -t "$LOGDIR"/*.jsonl 2>/dev/null | head -1 || true)"
+  LOG="$LOGDIR/current.jsonl"
 elif [[ -f "$arg" ]]; then
   LOG="$arg"
 else
   LOG="$LOGDIR/${arg%.jsonl}.jsonl"
 fi
-[[ -n "${LOG:-}" && -f "$LOG" ]] || { echo "no log found (looked in $LOGDIR)"; exit 1; }
+mkdir -p "$LOGDIR"; : >> "$LOG"   # ensure it exists so -F can start before the first run
 
 echo "▶ watching $(basename "$LOG")   (Ctrl-C to stop; dispatch keeps running)"
 echo
 
-# Each line is one JSON event. Parse-or-skip so stray non-JSON lines are ignored.
-tail -n +1 -f "$LOG" | jq -jR --unbuffered '
+# tail -F (follow by name + retry) survives truncation and replacement, so a new
+# dispatch overwriting current.jsonl continues in the same view. Each line is one
+# JSON event; parse-or-skip so stray non-JSON lines are ignored.
+tail -n +1 -F "$LOG" | jq -jR --unbuffered '
   def trim($n): if (.|type=="string") and (.|length) > $n then .[:$n] + "…" else . end;
   def arg: (.args.path // .args.command // .args.filePath // (.args|tostring)) | trim(90);
   (fromjson? // empty) |

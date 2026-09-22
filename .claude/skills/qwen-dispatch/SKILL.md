@@ -57,11 +57,13 @@ For the full method, read `DESIGN.md`.
 
    **To watch qwen live**, run this in a second terminal while the dispatch runs:
    ```bash
-   .claude/skills/qwen-dispatch/watch.sh            # follows the newest dispatch
-   .claude/skills/qwen-dispatch/watch.sh port-001-smoke-null-callback
+   .claude/skills/qwen-dispatch/watch.sh            # continuous: follows every new dispatch
+   .claude/skills/qwen-dispatch/watch.sh port-001-smoke-null-callback  # one specific run
    ```
-   It renders a colored feed of qwen's text, tool calls, and results from
-   `tasks/logs/<session>.jsonl`. Ctrl-C stops the view; the dispatch keeps running.
+   With no argument it follows `tasks/logs/current.jsonl` with `tail -F`, so a
+   single watcher left running keeps flowing as new tasks start. A session id
+   follows just that run's `tasks/logs/<session>.jsonl`. Ctrl-C stops the view;
+   the dispatch keeps running.
    For a transcript after the run, `pi --session <id> --export <file>.html`.
 
 4. **Always review the diff.** Do not let qwen's work go into the code without a

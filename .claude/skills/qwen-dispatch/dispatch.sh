@@ -113,7 +113,7 @@ pi -p --mode json \
   "${TOOL_ARGS[@]}" \
   "@$SPEC" "${CONTEXT[@]/#/@}" \
   "$INSTRUCTION" \
-  | tee "$LOG"
+  | tee "$LOG" "$LOGDIR/current.jsonl"
 STATUS=${PIPESTATUS[0]}
 set -e
 
