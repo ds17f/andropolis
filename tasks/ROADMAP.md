@@ -1,0 +1,44 @@
+# Roadmap — ordered working backlog
+
+Chew top to bottom. Each `[ ]` is roughly one qwen dispatch (Opus specs + reviews +
+verifies on device). Mark `[x]` when merged & verified, `[~]` when in flight.
+Deeper design notes for the big items live in `BACKLOG.md`.
+
+## 1. Make it playable  (unblocks growing a city → unblocks playtest)
+- [~] 010 — complete the tool bar (add power plants!) + Move/Build toggle
+- [ ] Verify precise placement after Move/Build lands; tweak tap targeting if needed
+
+## 2. Save / load
+- [ ] Extend the C ABI with a **save** function (engine can save; C ABI only has
+      `loadCity`). Opus designs the C-ABI/JNI addition; qwen fills it in.
+- [ ] Save current city to app storage + load it back (UI buttons)
+- [ ] New city / regenerate button
+
+## 3. Playtest milestone
+- [ ] Build coal plant + residential zones + roads, run the sim, confirm
+      **population grows** (on device). Proves the game loop end-to-end.
+
+## 4. UI completion & game options
+- [ ] Speed of play control — pause / slow / med / fast (`setSpeed`)
+- [ ] Tax rate control (`setCityTax`)
+- [ ] Selected-tool highlight + menu polish (icons / grouping)
+- [ ] Budget window
+- [ ] City evaluation window (rating, problems, stats)
+- [ ] Map overlays (power, crime, pollution, land value, pop density, traffic)
+- [ ] Graphs / history window
+- [ ] Messages / notifications feed
+
+## 5. Better input  (see BACKLOG.md)
+- [ ] Drag-to-build roads / rail / wire (`toolDrag`)
+- [ ] Staged build mode: preview + confirm/cancel with cost (`ToolEffects`).
+      Opus designs the C-ABI staged-effects extension.
+
+## 6. Engine → host events  (needs the callback plumbing; Opus designs C-ABI/JNI)
+- [ ] Wire the key callbacks (funds / date / message / sound)
+- [ ] Sounds
+- [ ] Disasters menu / triggers
+
+---
+Method reminder: qwen (coder-next) does the coding; Opus specs + reviews. Android
+tasks run in the main tree (not `--isolate`). Dispatch via `run_in_background`,
+never a trailing `&`. See `CLAUDE.md`.
