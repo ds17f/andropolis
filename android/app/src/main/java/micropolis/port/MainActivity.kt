@@ -25,6 +25,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var ui: Handler
     private val statsBuf = IntArray(10)
     private var buildMode = true
+    @Volatile private var speed = 2   // 0=Pause 1=Slow 2=Med 3=Fast
+    private val speedNames = arrayOf("Pause", "Slow", "Med", "Fast")
+    private val speedTicks = intArrayOf(0, 2, 8, 20)
     private val savePath by lazy { java.io.File(filesDir, "city.cty").absolutePath }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -99,6 +102,15 @@ class MainActivity : AppCompatActivity() {
         barLayout.addView(saveBtn)
         barLayout.addView(loadBtn)
 
+        val speedBtn = Button(this).apply {
+            text = "Speed: ${speedNames[speed]}"
+            setOnClickListener {
+                speed = (speed + 1) % 4
+                text = "Speed: ${speedNames[speed]}"
+            }
+        }
+        barLayout.addView(speedBtn)
+
         for ((label, value) in tools) {
             val button = Button(this).apply {
                 text = label
@@ -137,7 +149,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun tickLoop() {
-        repeat(8) { MicropolisNative.simTick(handle) }
+        repeat(speedTicks[speed]) { MicropolisNative.simTick(handle) }
         MicropolisNative.copyTiles(handle, buf)
         val tilesCopy = buf.copyOf()
         ui.post { mapView.update(tilesCopy) }
