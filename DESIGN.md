@@ -293,6 +293,10 @@ the sibling repo `~/Developer/micropolis-android` (see §11): **Gradle 8.10.2, A
 - Task 007 (done, verified): stats HUD (funds/date/pop/score) polled from
   `getStats` each tick. Fully qwen. (True engine→host callbacks for discrete
   events — messages/sounds — deferred until needed; polling covers the HUD.)
+- Task 008 (done, verified on device by user): respect the top/bottom system
+  bars — `root.fitsSystemWindows = true` on the root `LinearLayout` in
+  `MainActivity`. The tool-picker row now clears the navigation bar and the HUD
+  clears the status bar on API 35+ edge-to-edge layout.
 
 **Known polish item:** at startup the map sits at the top with a dark gap below;
 it only centers vertically after a gesture (`clampPan` isn't called on first
