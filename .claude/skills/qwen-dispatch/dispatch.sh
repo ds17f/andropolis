@@ -79,6 +79,9 @@ if [[ "$ISOLATE" -eq 1 ]]; then
     export CMAKE_CXX_COMPILER_LAUNCHER=ccache CMAKE_C_COMPILER_LAUNCHER=ccache
     echo ">> ccache enabled" >&2
   fi
+  # Copy gitignored local config the build needs (SDK path) into the worktree.
+  [[ -f "$REPO/android/local.properties" ]] && \
+    cp "$REPO/android/local.properties" "$WORKDIR/android/local.properties" || true
 fi
 
 RULES="$WORKDIR/tasks/_rules.md"
