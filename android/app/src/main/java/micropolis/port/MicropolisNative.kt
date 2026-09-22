@@ -26,4 +26,9 @@ object MicropolisNative {
      *  resDemand, comDemand, indDemand, gameLevel].
      */
     external fun getStats(handle: Long, dst: IntArray)
+
+    /** Save the city to `path`. Returns 1 on success, 0 on failure. */
+    external fun saveCity(handle: Long, path: String): Int
+    /** Load a city from `path`. Returns 1 on success, 0 on failure. */
+    external fun loadCity(handle: Long, path: String): Int
 }

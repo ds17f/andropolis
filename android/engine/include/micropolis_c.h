@@ -41,6 +41,8 @@ void micropolis_generate_random_city(MicropolisEngine *e);
 void micropolis_generate_city_seed(MicropolisEngine *e, int seed);
 /* Returns 1 on success, 0 on failure. */
 int  micropolis_load_city(MicropolisEngine *e, const char *path);
+/* Save the current city to a file. Returns 1 on success, 0 on failure. */
+int  micropolis_save_city(MicropolisEngine *e, const char *path);
 
 /* ---- Simulation control ---- */
 void micropolis_sim_tick(MicropolisEngine *e);

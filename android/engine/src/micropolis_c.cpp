@@ -97,6 +97,13 @@ int micropolis_load_city(MicropolisEngine *e, const char *path) {
     return 0;
 }
 
+int micropolis_save_city(MicropolisEngine *e, const char *path) {
+    if (e && path) {
+        return e->sim->saveFile(std::string(path)) ? 1 : 0;
+    }
+    return 0;
+}
+
 void micropolis_sim_tick(MicropolisEngine *e) {
     if (e) {
         e->sim->simTick();

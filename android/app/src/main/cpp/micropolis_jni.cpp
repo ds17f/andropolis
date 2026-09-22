@@ -64,6 +64,22 @@ Java_micropolis_port_MicropolisNative_copyTiles(JNIEnv *env, jobject, jlong h, j
     return n;
 }
 
+JNIEXPORT jint JNICALL
+Java_micropolis_port_MicropolisNative_saveCity(JNIEnv *env, jobject, jlong h, jstring jpath) {
+    const char *path = env->GetStringUTFChars(jpath, nullptr);
+    int r = micropolis_save_city(eng(h), path);
+    env->ReleaseStringUTFChars(jpath, path);
+    return r;
+}
+
+JNIEXPORT jint JNICALL
+Java_micropolis_port_MicropolisNative_loadCity(JNIEnv *env, jobject, jlong h, jstring jpath) {
+    const char *path = env->GetStringUTFChars(jpath, nullptr);
+    int r = micropolis_load_city(eng(h), path);
+    env->ReleaseStringUTFChars(jpath, path);
+    return r;
+}
+
 JNIEXPORT void JNICALL
 Java_micropolis_port_MicropolisNative_getStats(JNIEnv *env, jobject, jlong h, jintArray dst) {
     if (env->GetArrayLength(dst) < 10) {
