@@ -5,8 +5,8 @@ verifies on device). Mark `[x]` when merged & verified, `[~]` when in flight.
 Deeper design notes for the big items live in `BACKLOG.md`.
 
 ## 1. Make it playable  (unblocks growing a city → unblocks playtest)
-- [~] 010 — complete the tool bar (add power plants!) + Move/Build toggle
-- [ ] Verify precise placement after Move/Build lands; tweak tap targeting if needed
+- [x] 010 — complete the tool bar (power plants) + Move/Build toggle  ✅ merged
+- [ ] Verify precise placement on device; tweak tap targeting / zoom if needed
 
 ## 2. Save / load
 - [ ] Extend the C ABI with a **save** function (engine can save; C ABI only has
