@@ -1,21 +1,28 @@
 package micropolis.port
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Rect
+import android.graphics.RectF
 import android.view.MotionEvent
 import android.view.View
 
 /**
- * First-light renderer: draws the 120x100 tile map as colored cells. The palette
- * is a rough approximation by tile-index range, enough to see land, water, and
- * built structure. Real tile bitmaps come later.
+ * Renderer: draws the 120x100 tile map using the real tile atlas.
+ * The atlas is a 256×960 PNG with 16×16 tiles in a 16-column, 60-row grid.
  */
 class MapView(context: Context) : View(context) {
     private val cols = MicropolisNative.mapWidth()
     private val rows = MicropolisNative.mapHeight()
     private var tiles = ShortArray(cols * rows)
-    private val paint = Paint()
+    private val paint = Paint().apply { isFilterBitmap = false }
+    
+    private val atlas: Bitmap = BitmapFactory.decodeStream(context.assets.open("tiles.png"))
+    private val srcRect = Rect()
+    private val dstRect = RectF()
 
     var onTileTap: ((Int, Int) -> Unit)? = null
 
@@ -41,22 +48,14 @@ class MapView(context: Context) : View(context) {
         for (x in 0 until cols) {
             val base = x * rows
             for (y in 0 until rows) {
-                paint.color = colorFor(tiles[base + y].toInt() and 0x03FF)
-                canvas.drawRect(x * cw, y * ch, (x + 1) * cw, (y + 1) * ch, paint)
+                val tileIdx = tiles[base + y].toInt() and 0x03FF
+                val idx = if (tileIdx >= 960) 0 else tileIdx
+                val col = idx % 16
+                val row = idx / 16
+                srcRect.set(col * 16, row * 16, col * 16 + 16, row * 16 + 16)
+                dstRect.set(x * cw, y * ch, (x + 1) * cw, (y + 1) * ch)
+                canvas.drawBitmap(atlas, srcRect, dstRect, paint)
             }
-        }
-    }
-
-    private fun colorFor(tile: Int): Int = when {
-        tile == 0 -> 0xFF5A8F3A.toInt()        // DIRT -> green
-        tile in 2..20 -> 0xFF2E6FB0.toInt()    // river/water -> blue
-        tile in 21..43 -> 0xFF2E8B57.toInt()   // woods -> dark green
-        tile in 44..47 -> 0xFF7A7A7A.toInt()   // roads-ish -> gray
-        else -> {                              // hash so structure is visible
-            val r = (tile * 37) and 0xFF
-            val g = (tile * 59) and 0xFF
-            val b = (tile * 17) and 0xFF
-            (0xFF shl 24) or (r shl 16) or (g shl 8) or b
         }
     }
 }
