@@ -280,10 +280,14 @@ the sibling repo `~/Developer/micropolis-android` (see §11): **Gradle 8.10.2, A
   is marshaled onto it and taps call `doTool` (park). Verified: live updates with
   no ANR, `doTool` runs on-device without crashing.
 
-**Next:** real tile rendering — a tile atlas instead of the guessed-range color
-palette (placed structures like parks are hard to see until then); then the
-engine→host callbacks task (messages, sounds, funds/date). A tool picker + zoom/pan
-are UI polish for later.
+- Task 004 (done, verified on device): real tile rendering from the atlas
+  (`android/app/src/main/assets/tiles.png`, 256×960, 16×16, row-major,
+  `idx = value & 0x3FF`). Authentic terrain now shows (dirt/forest/water). Fully
+  qwen — it sourced/copied the atlas and wrote the renderer.
+
+**Next:** engine→host callbacks task (messages, sounds, funds/date), and UI to make
+building legible/usable — a tool picker and zoom/pan (a full-map park is only a few
+pixels). All qwen dispatches; Opus specs + reviews.
 
 ## 11. Sibling repo: `~/Developer/micropolis-android`
 
