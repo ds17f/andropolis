@@ -65,6 +65,14 @@ For the full method, read `DESIGN.md`.
      did the work and the planner wrote the spec.
    - If the work is wrong, revert it with `git checkout -- <files>`. Make the spec
      stronger. Dispatch it again.
+   - If qwen wrote `tasks/<task-id>.BLOCKED.md`, it is stuck and asking for help
+     (`dispatch.sh` flags this on exit). Read it, answer the question by tightening
+     the spec or adding a note, delete the BLOCKED file, and re-dispatch the same
+     session so qwen resumes with context.
+
+**Before every dispatch the tree must be clean.** `dispatch.sh` refuses a dirty
+tree (exit 3) so an uncommitted planner edit cannot be clobbered by qwen's git.
+Commit your own work first. qwen is constrained to stage only its in-scope files.
 
 ## Model selection
 

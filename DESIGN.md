@@ -123,6 +123,30 @@ shells out to `pi` via Bash, hands it a spec, gets JSON back, reviews the diff,
 and iterates — the user only approves. The dispatch wrapper is
 `.claude/skills/qwen-dispatch/dispatch.sh`; the workflow is the `qwen-dispatch` skill.
 
+### qwen → planner communication
+
+qwen runs to completion on each `-p` call, so the exchange is **asynchronous** —
+Opus is not live during a run. Three channels carry information back:
+
+1. **The result stream.** Every dispatch returns qwen's full text + tool trace as
+   JSON (rendered live by `watch.sh`). A failed Definition of Done surfaces here
+   with qwen's own diagnosis.
+2. **The BLOCKED protocol.** When qwen cannot pass the DoD, or hits a decision the
+   spec does not cover, the contract requires it to STOP — not guess, not touch
+   out-of-scope files — and write `tasks/<task-id>.BLOCKED.md` (what it tried, the
+   exact error, the question it needs answered). `dispatch.sh` detects that file on
+   exit and flags it to the planner.
+3. **Session continuity = a conversation.** Because dispatch uses a stable
+   `--session-id`, Opus answers by re-dispatching the same session with the answer
+   or a tightened spec; qwen resumes with full context. Ask → answer → continue.
+
+**Guardrails learned the hard way (2026-09-22):** qwen has git write access, so a
+stuck qwen must fail *safe*, not improvise. In task 001 it ran `git checkout
+DESIGN.md` and destroyed an uncommitted planner edit. Fixes: (a) `dispatch.sh`
+refuses a dirty tree (exit 3), so planner work is always committed before a run;
+(b) the contract forbids qwen from `git checkout/reset/restore/stash/clean` and
+`git add -A`/`commit -a` — it stages only its in-scope files by name.
+
 ## 6. Model decision
 
 Models visible to `pi` on the Ollama box:

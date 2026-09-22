@@ -22,6 +22,14 @@ more and no less. Then show that your work is correct.
    a short message that tells what you did. These are "microcommits". They are
    small and frequent. They give safe points to go back to. The planner squashes
    them into clean commits later.
+8. Stage only your in-scope files by name (`git add <file>`). Do not use `git add
+   -A`, `git add .`, or `git commit -a`. Do not run `git checkout`, `git restore`,
+   `git reset`, `git stash`, or `git clean`. These commands can delete the
+   planner's work.
+9. If you get blocked, ask for help. You are blocked if you cannot make the test
+   green, or the spec does not give a decision that you need. Do not guess. Write
+   the file `tasks/<task-id>.BLOCKED.md` with what you tried, the exact error, and
+   your question. Then stop. The planner answers and starts you again.
 
 ## Project shape
 
