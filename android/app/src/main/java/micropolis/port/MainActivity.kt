@@ -25,6 +25,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var ui: Handler
     private val statsBuf = IntArray(10)
     private var buildMode = true
+    private val savePath by lazy { java.io.File(filesDir, "city.cty").absolutePath }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,6 +81,23 @@ class MainActivity : AppCompatActivity() {
             }
         }
         barLayout.addView(modeButton)
+
+        // New, Save, Load buttons (after mode toggle, before tools)
+        val newBtn = Button(this).apply {
+            text = "New"
+            setOnClickListener { sim.post { MicropolisNative.generateRandomCity(handle) } }
+        }
+        val saveBtn = Button(this).apply {
+            text = "Save"
+            setOnClickListener { sim.post { MicropolisNative.saveCity(handle, savePath) } }
+        }
+        val loadBtn = Button(this).apply {
+            text = "Load"
+            setOnClickListener { sim.post { MicropolisNative.loadCity(handle, savePath) } }
+        }
+        barLayout.addView(newBtn)
+        barLayout.addView(saveBtn)
+        barLayout.addView(loadBtn)
 
         for ((label, value) in tools) {
             val button = Button(this).apply {
