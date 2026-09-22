@@ -23,6 +23,7 @@ node_modules/
 
 # qwen dispatch live logs
 tasks/logs/
+.qwen-logs/
 
 # isolated dispatch worktrees
 .worktrees/
