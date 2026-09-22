@@ -1,9 +1,10 @@
 #pragma once
 #include "callback.h"
 
-// A Callback that does nothing. Use it for headless runs (no JS, no UI).
-// Override EVERY pure virtual method of Callback with an empty body.
-// Methods that return a value return a default value (0, false, "").
+// A Callback that does nothing. Use it for headless runs and for the C ABI
+// (no JS, no UI). Every pure virtual of Callback is overridden with an empty
+// body; value-returning methods return a default. Moved here from android/smoke
+// so both the smoke test and the C boundary can share it.
 class NullCallback : public Callback {
 public:
     virtual ~NullCallback() {}

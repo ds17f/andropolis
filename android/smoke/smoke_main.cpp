@@ -1,6 +1,6 @@
 #include <cstdio>
 #include "micropolis.h"
-#include "null_callback.h"
+#include "micropolis_null_callback.h"
 
 int main() {
     Micropolis *engine = new Micropolis();
