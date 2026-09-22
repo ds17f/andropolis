@@ -37,6 +37,13 @@ class MapView(context: Context) : View(context) {
     private val gestureListener = GestureListener()
     private val gestureDetector = GestureDetector(context, gestureListener)
 
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        tileSize = w.toFloat() / cols
+        clampPan()
+        invalidate()
+    }
+
     fun update(newTiles: ShortArray) {
         tiles = newTiles
         postInvalidate()
