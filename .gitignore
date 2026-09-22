@@ -17,3 +17,6 @@ node_modules/
 # pi sessions / scratch
 .pi/
 *.session.json
+
+# qwen dispatch live logs
+tasks/logs/

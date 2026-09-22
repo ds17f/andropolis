@@ -41,6 +41,15 @@ For the full method, read `DESIGN.md`.
    script adds `tasks/_rules.md`, runs `pi -p --mode json`, and makes a session id
    from the spec name. A later round then resumes the same context.
 
+   **To watch qwen live**, run this in a second terminal while the dispatch runs:
+   ```bash
+   .claude/skills/qwen-dispatch/watch.sh            # follows the newest dispatch
+   .claude/skills/qwen-dispatch/watch.sh port-001-smoke-null-callback
+   ```
+   It renders a colored feed of qwen's text, tool calls, and results from
+   `tasks/logs/<session>.jsonl`. Ctrl-C stops the view; the dispatch keeps running.
+   For a transcript after the run, `pi --session <id> --export <file>.html`.
+
 4. **Always review the diff.** Do not let qwen's work go into the code without a
    review:
    ```bash

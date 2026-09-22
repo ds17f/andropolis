@@ -27,6 +27,11 @@ CONTEXT=("$@")   # extra files for qwen to read
 # Stable session id per spec, so a follow-up round resumes context.
 SID="port-$(basename "$SPEC" .md)"
 
+# Live log, so you can watch with watch.sh (tasks/logs/<SID>.jsonl).
+LOGDIR="$REPO/tasks/logs"
+mkdir -p "$LOGDIR"
+LOG="$LOGDIR/$SID.jsonl"
+
 # Fence scope on plan-only passes: no filesystem mutation.
 TOOL_ARGS=()
 INSTRUCTION="Implement the attached task spec. Build and run the test in its \
@@ -40,13 +45,16 @@ write, and how you would satisfy the Definition of Done. Flag anything ambiguous
 fi
 
 echo ">> dispatching $(basename "$SPEC")  model=$MODEL  plan=$PLAN  session=$SID" >&2
+echo ">> live log: $LOG  (watch with: .claude/skills/qwen-dispatch/watch.sh $SID)" >&2
 
+# pipefail (set above) makes pi's exit status propagate through the tee.
 cd "$REPO"
-exec pi -p --mode json \
+pi -p --mode json \
   --provider "$PROVIDER" --model "$MODEL" \
   --append-system-prompt "$RULES" \
   --session-id "$SID" \
   --approve \
   "${TOOL_ARGS[@]}" \
   "@$SPEC" "${CONTEXT[@]/#/@}" \
-  "$INSTRUCTION"
+  "$INSTRUCTION" \
+  | tee "$LOG"
