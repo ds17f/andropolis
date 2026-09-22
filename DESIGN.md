@@ -210,3 +210,32 @@ them.
 
 Practical rule of thumb: green test → commit; risky next step → commit first so
 there's a point to return to; unit done → squash to a conventional commit.
+
+## 9. Build & status
+
+**Step 0 is COMPLETE and verified (2026-09-22).** The 25-source engine compiles
+and runs headless on the host, and cross-compiles to a real Android AArch64
+binary. Local toolchain: g++ 16, CMake 4.3, NDK 30.0.16248370, SDK at `~/Android/Sdk`.
+
+Host (smoke test):
+```
+cmake -S android -B android/build-host -DCMAKE_BUILD_TYPE=Debug
+cmake --build android/build-host --target micropolis_smoke -j
+./android/build-host/smoke/micropolis_smoke   # -> cityTime=32 totalFunds=20000 cityPop=0
+```
+
+Android (arm64-v8a):
+```
+NDK=~/Android/Sdk/ndk/30.0.16248370
+cmake -S android -B android/build-android \
+  -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
+  -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DCMAKE_BUILD_TYPE=Release
+cmake --build android/build-android --target micropolis_smoke -j
+# -> ELF 64-bit AArch64 pie executable, for Android 24 (NDK r30)
+```
+Known upstream warnings: two `-Wnonnull` in `fileio.cpp` (benign).
+
+**Next — task 002: design the C-ABI boundary.** Replace the `emscripten::val`
+pass-through with a native handle, and expose a stable C ABI (create/destroy,
+init, tick, read map/stats, apply tool) that Kotlin/JNI will call. Opus designs
+the contract; qwen fills the translations.
