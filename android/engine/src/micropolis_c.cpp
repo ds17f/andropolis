@@ -5,6 +5,8 @@
 #include "micropolis.h"
 #include "micropolis_null_callback.h"
 #include "tool.h"
+#include <cstring>
+#include <new>
 
 // Add static_asserts to prove C enums match C++ enums
 static_assert(MICROPOLIS_TOOL_RESIDENTIAL == TOOL_RESIDENTIAL, "Tool enum mismatch");
@@ -47,15 +49,25 @@ extern "C" {
 MicropolisEngine *micropolis_create(void) {
     MicropolisEngine *e = new MicropolisEngine();
     e->callback = new NullCallback();
-    e->sim = new Micropolis();
+    // Upstream Micropolis::Micropolis() does not initialize its `callback`
+    // member, so setCallback()'s `if (callback != NULL) delete callback;` frees a
+    // garbage pointer on the first call. That is harmless only where the heap
+    // happens to be zero (host malloc by luck, WASM linear memory by spec) and
+    // CRASHES on a real non-zeroed heap (Android). Zero the storage before
+    // constructing so every member — including `callback` — starts at 0.
+    void *mem = ::operator new(sizeof(Micropolis));
+    std::memset(mem, 0, sizeof(Micropolis));
+    e->sim = new (mem) Micropolis();
     e->sim->setCallback(e->callback, emscripten::val());
     return e;
 }
 
 void micropolis_destroy(MicropolisEngine *e) {
     if (e) {
-        delete e->sim;
-        // Note: Micropolis destructor already deleted the callback, so we don't delete it again.
+        if (e->sim) {
+            e->sim->~Micropolis();      // matches the placement new in create()
+            ::operator delete(e->sim);  // the ~Micropolis already deleted callback
+        }
         delete e;
     }
 }
