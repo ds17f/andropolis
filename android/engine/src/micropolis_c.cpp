@@ -181,6 +181,23 @@ void micropolis_get_stats(const MicropolisEngine *e, MicropolisStats *out) {
     out->game_level = int(e->sim->gameLevel);
 }
 
+void micropolis_get_budget(const MicropolisEngine *e, MicropolisBudget *out) {
+    if (!e || !out) return;
+    Micropolis *s = e->sim;
+    out->total_funds = int(s->totalFunds); out->tax_rate = int(s->cityTax); out->tax_income = int(s->taxFund);
+    out->road_fund = int(s->roadFund);   out->road_spend = int(s->roadSpend);   out->road_percent = int(s->roadPercent * 100);
+    out->police_fund = int(s->policeFund); out->police_spend = int(s->policeSpend); out->police_percent = int(s->policePercent * 100);
+    out->fire_fund = int(s->fireFund);   out->fire_spend = int(s->fireSpend);   out->fire_percent = int(s->firePercent * 100);
+}
+
+void micropolis_get_evaluation(const MicropolisEngine *e, MicropolisEvaluation *out) {
+    if (!e || !out) return;
+    Micropolis *s = e->sim;
+    out->city_score = int(s->cityScore); out->score_delta = int(s->cityScoreDelta); out->city_class = int(s->cityClass);
+    out->city_pop = int(s->cityPop); out->pop_delta = int(s->cityPopDelta);
+    out->assessed_value = int(s->cityAssessedValue); out->approval = int(s->cityYes);
+}
+
 int micropolis_do_tool(MicropolisEngine *e, int tool, int x, int y) {
     if (!e) {
         return MICROPOLIS_TOOL_FAILED;

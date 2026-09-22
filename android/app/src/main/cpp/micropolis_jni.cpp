@@ -95,6 +95,26 @@ Java_micropolis_port_MicropolisNative_getStats(JNIEnv *env, jobject, jlong h, ji
 }
 
 JNIEXPORT void JNICALL
+Java_micropolis_port_MicropolisNative_getBudget(JNIEnv *env, jobject, jlong h, jintArray dst) {
+    if (env->GetArrayLength(dst) < 12) return;
+    MicropolisBudget b; micropolis_get_budget(eng(h), &b);
+    jint t[12] = { b.total_funds, b.tax_rate, b.tax_income,
+                   b.road_fund, b.road_spend, b.road_percent,
+                   b.police_fund, b.police_spend, b.police_percent,
+                   b.fire_fund, b.fire_spend, b.fire_percent };
+    env->SetIntArrayRegion(dst, 0, 12, t);
+}
+
+JNIEXPORT void JNICALL
+Java_micropolis_port_MicropolisNative_getEvaluation(JNIEnv *env, jobject, jlong h, jintArray dst) {
+    if (env->GetArrayLength(dst) < 7) return;
+    MicropolisEvaluation ev; micropolis_get_evaluation(eng(h), &ev);
+    jint t[7] = { ev.city_score, ev.score_delta, ev.city_class,
+                  ev.city_pop, ev.pop_delta, ev.assessed_value, ev.approval };
+    env->SetIntArrayRegion(dst, 0, 7, t);
+}
+
+JNIEXPORT void JNICALL
 Java_micropolis_port_MicropolisNative_setCityTax(JNIEnv *, jobject, jlong h, jint tax) {
     micropolis_set_city_tax(eng(h), tax);
 }

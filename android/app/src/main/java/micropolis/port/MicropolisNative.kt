@@ -27,6 +27,17 @@ object MicropolisNative {
      */
     external fun getStats(handle: Long, dst: IntArray)
 
+    /**
+     * Fills dst (length >= 12): [totalFunds, taxRate, taxIncome, roadFund, roadSpend, roadPct,
+     *  policeFund, policeSpend, policePct, fireFund, fireSpend, firePct].
+     */
+    external fun getBudget(handle: Long, dst: IntArray)
+
+    /**
+     * Fills dst (length >= 7): [score, scoreDelta, cityClass, pop, popDelta, assessedValue, approval].
+     */
+    external fun getEvaluation(handle: Long, dst: IntArray)
+
     /** Save the city to `path`. Returns 1 on success, 0 on failure. */
     external fun saveCity(handle: Long, path: String): Int
     /** Load a city from `path`. Returns 1 on success, 0 on failure. */

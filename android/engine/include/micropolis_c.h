@@ -80,6 +80,22 @@ typedef struct MicropolisStats {
 } MicropolisStats;
 void micropolis_get_stats(const MicropolisEngine *e, MicropolisStats *out);
 
+/* ---- Budget (for the HUD) ---- */
+typedef struct MicropolisBudget {
+    int total_funds; int tax_rate; int tax_income;
+    int road_fund; int road_spend; int road_percent;
+    int police_fund; int police_spend; int police_percent;
+    int fire_fund; int fire_spend; int fire_percent;
+} MicropolisBudget;   /* 12 ints */
+void micropolis_get_budget(const MicropolisEngine *e, MicropolisBudget *out);
+
+/* ---- Evaluation (for the HUD) ---- */
+typedef struct MicropolisEvaluation {
+    int city_score; int score_delta; int city_class;
+    int city_pop; int pop_delta; int assessed_value; int approval;
+} MicropolisEvaluation;   /* 7 ints */
+void micropolis_get_evaluation(const MicropolisEngine *e, MicropolisEvaluation *out);
+
 /* ---- Tools / interaction ---- */
 /*
  * These MUST equal the engine's EditingTool (tool.h). The implementation adds
