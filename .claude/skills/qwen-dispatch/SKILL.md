@@ -41,6 +41,18 @@ For the full method, read `DESIGN.md`.
    script adds `tasks/_rules.md`, runs `pi -p --mode json`, and makes a session id
    from the spec name. A later round then resumes the same context.
 
+   **Isolated runs:** add `--isolate` for large/risky tasks, or whenever you run
+   several dispatches in parallel:
+   ```bash
+   .claude/skills/qwen-dispatch/dispatch.sh --isolate tasks/NNN-slug.md <context-files...>
+   ```
+   qwen then works in a throwaway worktree (`.worktrees/`) on branch
+   `dispatch/NNN-slug`, so it cannot touch the main tree at all. It uses `ccache`
+   if installed, so per-worktree builds stay cheap. On exit the script prints the
+   `diff`, `merge --ff-only`, and `worktree remove` commands. Default (no flag)
+   runs in the main tree — fine for small single tasks, which the clean-tree guard
+   already protects.
+
    **To watch qwen live**, run this in a second terminal while the dispatch runs:
    ```bash
    .claude/skills/qwen-dispatch/watch.sh            # follows the newest dispatch
