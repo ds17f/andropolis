@@ -20,7 +20,7 @@ Deeper design notes for the big items live in `BACKLOG.md`.
 ## 4. UI completion & game options
 - [x] 013 — Speed of play: pause / slow / med / fast (tick-loop based)  ✅ merged
 - [x] 014 — Tax rate control (`setCityTax` binding + UI)  ✅ merged
-- [ ] Selected-tool highlight + menu polish (icons / grouping)
+- [x] 015 — Selected-tool highlight  ✅ merged  (icons/grouping still TODO)
 - [ ] Budget window
 - [ ] City evaluation window (rating, problems, stats)
 - [ ] Map overlays (power, crime, pollution, land value, pop density, traffic)
