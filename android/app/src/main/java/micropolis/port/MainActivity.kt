@@ -76,6 +76,9 @@ class MainActivity : AppCompatActivity() {
         val barLayout = LinearLayout(this)
         barLayout.orientation = LinearLayout.HORIZONTAL
 
+        // Tool buttons (collected for highlighting)
+        val toolButtons = mutableListOf<Button>()
+
         // Mode toggle button (first in bar)
         val modeButton = Button(this).apply {
             text = "Build"
@@ -127,9 +130,14 @@ class MainActivity : AppCompatActivity() {
         for ((label, value) in tools) {
             val button = Button(this).apply {
                 text = label
-                setOnClickListener { currentTool = value }
+                setOnClickListener {
+                    currentTool = value
+                    highlightTool(this, toolButtons)
+                }
             }
+            toolButtons.add(button)
             barLayout.addView(button)
+            if (value == currentTool) button.post { highlightTool(button, toolButtons) }
         }
 
         val scroll = HorizontalScrollView(this)
@@ -159,6 +167,11 @@ class MainActivity : AppCompatActivity() {
 
         // Start tick loop on sim thread
         sim.post({ tickLoop() })
+    }
+
+    private fun highlightTool(selected: android.widget.Button, all: List<android.widget.Button>) {
+        for (b in all) b.setBackgroundColor(0xFF666666.toInt())   // unselected gray
+        selected.setBackgroundColor(0xFF2E7D32.toInt())           // selected green
     }
 
     private fun tickLoop() {
