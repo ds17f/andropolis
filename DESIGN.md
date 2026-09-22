@@ -41,6 +41,30 @@ with the **NDK** and replace the **Embind (C++↔JS) binding with a JNI / C-ABI
 |---|---|---|
 | **Engine** | The 27 C++ files, recompiled with the Android NDK. Mostly build config, little code change. | **Opus** (toolchain) |
 | **Binding** | Replace the Embind layer with a JNI / thin C-ABI boundary. Opus designs the contract (memory ownership, threading, who frees what); qwen fills in per-function translations. | **Opus** design, **qwen** fill |
+
+### Binding notes (discovered 2026-09-22)
+
+Investigation of the engine sources established the exact shape of the JS coupling
+— this drives the whole binding design:
+
+- The `emscripten::val` dependency is **isolated to the callback plumbing**, not
+  the simulation. Concentrated in `callback.h` (~70 refs), `js_callback.h` (~39),
+  `callback.cpp` (~35). Only 2 refs each in `micropolis.h`/`.cpp`. The 24 core sim
+  files (`simulate`, `zone`, `scan`, `traffic`, `evaluate`, …) include no
+  Emscripten headers at all.
+- **`micropolis.h` already ships a native stub:** under `#if defined(__EMSCRIPTEN__)`
+  it includes the real Emscripten headers; the `#else` branch defines a minimal
+  `namespace emscripten { class val { … }; }`. So building **without**
+  `-D__EMSCRIPTEN__` makes the core compile against that stub with a plain C++17
+  toolchain — no shim from us.
+- **Native build set = 25 of 27 sources.** Exclude `emscripten.cpp` (Embind) and
+  `callback.cpp` (JS callback impl, includes `<emscripten.h>`). Supply our own
+  concrete `Callback` subclass instead of the JS one. Proven by task 001: a
+  `NullCallback` + headless `main` ticks the sim (`cityTime` advances).
+- **The core binding decision:** `emscripten::val callbackVal` is an opaque
+  pass-through "user data" handle. For the native port it becomes a native handle
+  (a `jobject`, a `void*`, or dropped). Replacing it + providing a native
+  `Callback` subclass is the substance of the binding layer.
 | **UI / render** | New Jetpack Compose app + a GL/Canvas tile renderer, input handling, city save/load. Genuinely new code, boundable per-screen. | **qwen** builds, **Opus** reviews |
 
 ### Sequencing (dependency order)
