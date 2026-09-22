@@ -18,8 +18,8 @@ Deeper design notes for the big items live in `BACKLOG.md`.
       **population grows** (on device). Proves the game loop end-to-end.
 
 ## 4. UI completion & game options
-- [ ] Speed of play control — pause / slow / med / fast (`setSpeed`)
-- [ ] Tax rate control (`setCityTax`)
+- [x] 013 — Speed of play: pause / slow / med / fast (tick-loop based)  ✅ merged
+- [~] 014 — Tax rate control (`setCityTax` binding + UI)
 - [ ] Selected-tool highlight + menu polish (icons / grouping)
 - [ ] Budget window
 - [ ] City evaluation window (rating, problems, stats)
