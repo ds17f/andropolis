@@ -7,7 +7,9 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
+import android.view.GestureDetector
 import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.view.View
 
 /**
@@ -26,25 +28,57 @@ class MapView(context: Context) : View(context) {
 
     var onTileTap: ((Int, Int) -> Unit)? = null
 
+    private var scale = 1f
+    private var panX = 0f
+    private var panY = 0f
+    private var tileSize = 0f
+    
+    private val scaleDetector = ScaleGestureDetector(context, ScaleListener())
+    private val gestureListener = GestureListener()
+    private val gestureDetector = GestureDetector(context, gestureListener)
+
     fun update(newTiles: ShortArray) {
         tiles = newTiles
         postInvalidate()
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (event.action == MotionEvent.ACTION_DOWN) {
-            val tileX = (event.x / (width.toFloat() / cols)).toInt().coerceIn(0, cols - 1)
-            val tileY = (event.y / (height.toFloat() / rows)).toInt().coerceIn(0, rows - 1)
-            onTileTap?.invoke(tileX, tileY)
-            performClick()
-            return true
+        scaleDetector.onTouchEvent(event)
+        gestureDetector.onTouchEvent(event)
+        return true
+    }
+
+    private fun clampPan() {
+        val mapW = tileSize * cols * scale
+        if (mapW <= width) {
+            panX = (width - mapW) / 2f
+        } else {
+            panX = panX.coerceIn(width - mapW, 0f)
         }
-        return super.onTouchEvent(event)
+        
+        val mapH = tileSize * rows * scale
+        if (mapH <= height) {
+            panY = (height - mapH) / 2f
+        } else {
+            panY = panY.coerceIn(height - mapH, 0f)
+        }
+    }
+
+    private fun convertToTile(e: MotionEvent): Pair<Int, Int> {
+        val worldX = (e.x - panX) / scale
+        val worldY = (e.y - panY) / scale
+        val tileX = (worldX / tileSize).toInt().coerceIn(0, cols - 1)
+        val tileY = (worldY / tileSize).toInt().coerceIn(0, rows - 1)
+        return Pair(tileX, tileY)
     }
 
     override fun onDraw(canvas: Canvas) {
-        val cw = width.toFloat() / cols
-        val ch = height.toFloat() / rows
+        tileSize = width.toFloat() / cols
+        
+        canvas.save()
+        canvas.translate(panX, panY)
+        canvas.scale(scale, scale)
+        
         for (x in 0 until cols) {
             val base = x * rows
             for (y in 0 until rows) {
@@ -53,9 +87,37 @@ class MapView(context: Context) : View(context) {
                 val col = idx % 16
                 val row = idx / 16
                 srcRect.set(col * 16, row * 16, col * 16 + 16, row * 16 + 16)
-                dstRect.set(x * cw, y * ch, (x + 1) * cw, (y + 1) * ch)
+                dstRect.set(x * tileSize, y * tileSize, (x + 1) * tileSize, (y + 1) * tileSize)
                 canvas.drawBitmap(atlas, srcRect, dstRect, paint)
             }
+        }
+        
+        canvas.restore()
+    }
+
+    private inner class ScaleListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+        override fun onScale(detector: ScaleGestureDetector): Boolean {
+            scale = (scale * detector.scaleFactor).coerceIn(1f, 8f)
+            clampPan()
+            invalidate()
+            return true
+        }
+    }
+
+    private inner class GestureListener : GestureDetector.SimpleOnGestureListener() {
+        override fun onScroll(e1: MotionEvent?, e2: MotionEvent, dx: Float, dy: Float): Boolean {
+            panX -= dx
+            panY -= dy
+            clampPan()
+            invalidate()
+            return true
+        }
+
+        override fun onSingleTapUp(e: MotionEvent): Boolean {
+            val (tileX, tileY) = convertToTile(e)
+            onTileTap?.invoke(tileX, tileY)
+            performClick()
+            return true
         }
     }
 }
