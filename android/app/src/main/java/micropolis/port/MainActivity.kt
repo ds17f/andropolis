@@ -4,6 +4,9 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
+import android.widget.Button
+import android.widget.HorizontalScrollView
+import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
 
 /**
@@ -14,6 +17,7 @@ import androidx.appcompat.app.AppCompatActivity
 class MainActivity : AppCompatActivity() {
 
     private var handle: Long = 0L
+    private var currentTool = 11
     private lateinit var mapView: MapView
     private lateinit var buf: ShortArray
     private lateinit var sim: Handler
@@ -30,12 +34,57 @@ class MainActivity : AppCompatActivity() {
 
         buf = ShortArray(MicropolisNative.mapWidth() * MicropolisNative.mapHeight())
         mapView = MapView(this)
-        setContentView(mapView)
+
+        val root = LinearLayout(this)
+        root.orientation = LinearLayout.VERTICAL
+
+        root.addView(
+            mapView,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                0,
+                1f
+            )
+        )
+
+        val tools = listOf(
+            "Bulldozer" to 7,
+            "Road" to 9,
+            "Rail" to 8,
+            "Wire" to 6,
+            "Residential" to 0,
+            "Commercial" to 1,
+            "Industrial" to 2,
+            "Police" to 4,
+            "Fire" to 3,
+            "Park" to 11
+        )
+
+        val barLayout = LinearLayout(this)
+        barLayout.orientation = LinearLayout.HORIZONTAL
+        for ((label, value) in tools) {
+            val button = Button(this).apply {
+                text = label
+                setOnClickListener { currentTool = value }
+            }
+            barLayout.addView(button)
+        }
+
+        val scroll = HorizontalScrollView(this)
+        scroll.layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+        scroll.addView(barLayout)
+        root.addView(scroll)
+
+        setContentView(root)
 
         // Set up tap listener
         mapView.onTileTap = { tileX, tileY ->
+            val tool = currentTool
             sim.post {
-                MicropolisNative.doTool(handle, 11, tileX, tileY)
+                MicropolisNative.doTool(handle, tool, tileX, tileY)
             }
         }
 
