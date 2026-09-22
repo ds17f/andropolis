@@ -127,6 +127,27 @@ class MainActivity : AppCompatActivity() {
         }
         barLayout.addView(taxBtn)
 
+        val budgetBtn = Button(this).apply {
+            text = "Budget"
+            setOnClickListener {
+                sim.post {
+                    val b = IntArray(12); MicropolisNative.getBudget(handle, b)
+                    ui.post { showBudgetDialog(b) }
+                }
+            }
+        }
+        val evalBtn = Button(this).apply {
+            text = "Eval"
+            setOnClickListener {
+                sim.post {
+                    val ev = IntArray(7); MicropolisNative.getEvaluation(handle, ev)
+                    ui.post { showEvalDialog(ev) }
+                }
+            }
+        }
+        barLayout.addView(budgetBtn)
+        barLayout.addView(evalBtn)
+
         for ((label, value) in tools) {
             val button = Button(this).apply {
                 text = label
@@ -188,6 +209,35 @@ class MainActivity : AppCompatActivity() {
         val text = "Funds: \$$funds    $monthName $year   Pop: $pop   Score: $score"
         ui.post { hud.text = text }
         sim.postDelayed({ tickLoop() }, 100)
+    }
+
+    private fun showBudgetDialog(b: IntArray) {
+        val msg = """
+            Funds: $${b[0]}
+            Tax rate: ${b[1]}%     Tax income: $${b[2]}
+
+            Roads:  $${b[4]} / $${b[3]}   (${b[5]}%)
+            Police: $${b[7]} / $${b[6]}   (${b[8]}%)
+            Fire:   $${b[10]} / $${b[9]}   (${b[11]}%)
+        """.trimIndent()
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("City Budget").setMessage(msg)
+            .setPositiveButton("OK", null).show()
+    }
+
+    private fun showEvalDialog(ev: IntArray) {
+        val classes = arrayOf("Village","Town","City","Capital","Metropolis","Megalopolis")
+        val cls = classes.getOrElse(ev[2]) { "?" }
+        val msg = """
+            Score: ${ev[0]}  (Δ ${ev[1]})
+            Class: $cls
+            Population: ${ev[3]}  (Δ ${ev[4]})
+            Assessed value: $${ev[5]}
+            Approval: ${ev[6]}%
+        """.trimIndent()
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("City Evaluation").setMessage(msg)
+            .setPositiveButton("OK", null).show()
     }
 
     override fun onDestroy() {
