@@ -3,6 +3,7 @@ package micropolis.port
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.view.MotionEvent
 import android.view.View
 
 /**
@@ -16,9 +17,22 @@ class MapView(context: Context) : View(context) {
     private var tiles = ShortArray(cols * rows)
     private val paint = Paint()
 
+    var onTileTap: ((Int, Int) -> Unit)? = null
+
     fun update(newTiles: ShortArray) {
         tiles = newTiles
         postInvalidate()
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (event.action == MotionEvent.ACTION_DOWN) {
+            val tileX = (event.x / (width.toFloat() / cols)).toInt().coerceIn(0, cols - 1)
+            val tileY = (event.y / (height.toFloat() / rows)).toInt().coerceIn(0, rows - 1)
+            onTileTap?.invoke(tileX, tileY)
+            performClick()
+            return true
+        }
+        return super.onTouchEvent(event)
     }
 
     override fun onDraw(canvas: Canvas) {
