@@ -31,6 +31,8 @@ class MainActivity : AppCompatActivity() {
     private val taxRates = intArrayOf(0, 5, 7, 9, 12, 15, 20)
     private var taxIdx = 2   // start at 7%
     private val savePath by lazy { java.io.File(filesDir, "city.cty").absolutePath }
+    private var previewMode = false
+    private val pending = mutableListOf<Triple<Int, Int, Int>>()  // x, y, tool
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -148,6 +150,29 @@ class MainActivity : AppCompatActivity() {
         barLayout.addView(budgetBtn)
         barLayout.addView(evalBtn)
 
+        val previewBtn = Button(this).apply {
+            text = "Preview: Off"
+            setOnClickListener {
+                previewMode = !previewMode
+                text = if (previewMode) "Preview: On" else "Preview: Off"
+            }
+        }
+        val confirmBtn = Button(this).apply {
+            text = "Confirm"
+            setOnClickListener {
+                val snapshot = pending.toList()
+                pending.clear(); mapView.setPendingTiles(emptyList())
+                sim.post { for (t in snapshot) MicropolisNative.doTool(handle, t.third, t.first, t.second) }
+            }
+        }
+        val cancelBtn = Button(this).apply {
+            text = "Cancel"
+            setOnClickListener { pending.clear(); mapView.setPendingTiles(emptyList()) }
+        }
+        barLayout.addView(previewBtn)
+        barLayout.addView(confirmBtn)
+        barLayout.addView(cancelBtn)
+
         for ((label, value) in tools) {
             val button = Button(this).apply {
                 text = label
@@ -173,9 +198,12 @@ class MainActivity : AppCompatActivity() {
 
         // Set up tap listener
         mapView.onTileTap = { tileX, tileY ->
-            val tool = currentTool
-            sim.post {
-                MicropolisNative.doTool(handle, tool, tileX, tileY)
+            if (previewMode) {
+                pending.add(Triple(tileX, tileY, currentTool))
+                mapView.setPendingTiles(pending.map { it.first to it.second })
+            } else {
+                val tool = currentTool
+                sim.post { MicropolisNative.doTool(handle, tool, tileX, tileY) }
             }
         }
 
