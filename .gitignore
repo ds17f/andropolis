@@ -1,0 +1,18 @@
+# Android / Gradle
+.gradle/
+build/
+local.properties
+*.iml
+.idea/
+
+# NDK / native build
+android/.cxx/
+*.o
+*.so.tmp
+
+# Node (upstream tooling)
+node_modules/
+
+# pi sessions / scratch
+.pi/
+*.session.json
