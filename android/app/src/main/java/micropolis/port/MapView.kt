@@ -33,6 +33,7 @@ class MapView(context: Context) : View(context) {
     private var panX = 0f
     private var panY = 0f
     private var tileSize = 0f
+    private var lastBuiltTile: Pair<Int, Int>? = null
     
     private val scaleDetector = ScaleGestureDetector(context, ScaleListener())
     private val gestureListener = GestureListener()
@@ -52,7 +53,17 @@ class MapView(context: Context) : View(context) {
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         scaleDetector.onTouchEvent(event)
-        gestureDetector.onTouchEvent(event)
+        // Build mode: drag paints tiles. Move mode: drag pans. Pinch always zooms.
+        if (buildEnabled && !scaleDetector.isInProgress) {
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> { buildAt(event); return true }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    lastBuiltTile = null; performClick(); return true
+                }
+            }
+        } else {
+            gestureDetector.onTouchEvent(event)
+        }
         return true
     }
 
@@ -78,6 +89,14 @@ class MapView(context: Context) : View(context) {
         val tileX = (worldX / tileSize).toInt().coerceIn(0, cols - 1)
         val tileY = (worldY / tileSize).toInt().coerceIn(0, rows - 1)
         return Pair(tileX, tileY)
+    }
+
+    private fun buildAt(event: MotionEvent) {
+        val (tileX, tileY) = convertToTile(event)
+        if (lastBuiltTile?.let { it.first == tileX && it.second == tileY } != true) {
+            lastBuiltTile = Pair(tileX, tileY)
+            onTileTap?.invoke(tileX, tileY)
+        }
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -122,10 +141,6 @@ class MapView(context: Context) : View(context) {
         }
 
         override fun onSingleTapUp(e: MotionEvent): Boolean {
-            if (buildEnabled) {
-                val (tileX, tileY) = convertToTile(e)
-                onTileTap?.invoke(tileX, tileY)
-            }
             performClick()
             return true
         }
