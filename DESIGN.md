@@ -271,8 +271,16 @@ the sibling repo `~/Developer/micropolis-android` (see §11): **Gradle 8.10.2, A
   `Pixel_API_36` emulator headless, installs, and launches; `make screenshot`
   grabs a PNG.
 
-**Next after first light:** move the sim to a background thread; real tile
-rendering; touch input → `doTool`; then the engine→host callbacks task.
+**Progress:**
+- Task 003 (done, verified on device): the sim runs on a dedicated `HandlerThread`
+  (engine is single-threaded, so it owns the handle and every native call); touch
+  is marshaled onto it and taps call `doTool` (park). Verified: live updates with
+  no ANR, `doTool` runs on-device without crashing.
+
+**Next:** real tile rendering — a tile atlas instead of the guessed-range color
+palette (placed structures like parks are hard to see until then); then the
+engine→host callbacks task (messages, sounds, funds/date). A tool picker + zoom/pan
+are UI polish for later.
 
 ## 11. Sibling repo: `~/Developer/micropolis-android`
 
