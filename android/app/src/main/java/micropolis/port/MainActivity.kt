@@ -28,6 +28,8 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var speed = 2   // 0=Pause 1=Slow 2=Med 3=Fast
     private val speedNames = arrayOf("Pause", "Slow", "Med", "Fast")
     private val speedTicks = intArrayOf(0, 2, 8, 20)
+    private val taxRates = intArrayOf(0, 5, 7, 9, 12, 15, 20)
+    private var taxIdx = 2   // start at 7%
     private val savePath by lazy { java.io.File(filesDir, "city.cty").absolutePath }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -110,6 +112,17 @@ class MainActivity : AppCompatActivity() {
             }
         }
         barLayout.addView(speedBtn)
+
+        val taxBtn = Button(this).apply {
+            text = "Tax: ${taxRates[taxIdx]}%"
+            setOnClickListener {
+                taxIdx = (taxIdx + 1) % taxRates.size
+                text = "Tax: ${taxRates[taxIdx]}%"
+                val t = taxRates[taxIdx]
+                sim.post { MicropolisNative.setCityTax(handle, t) }
+            }
+        }
+        barLayout.addView(taxBtn)
 
         for ((label, value) in tools) {
             val button = Button(this).apply {

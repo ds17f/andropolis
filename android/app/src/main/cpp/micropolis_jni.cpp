@@ -94,4 +94,9 @@ Java_micropolis_port_MicropolisNative_getStats(JNIEnv *env, jobject, jlong h, ji
     env->SetIntArrayRegion(dst, 0, 10, tmp);
 }
 
+JNIEXPORT void JNICALL
+Java_micropolis_port_MicropolisNative_setCityTax(JNIEnv *, jobject, jlong h, jint tax) {
+    micropolis_set_city_tax(eng(h), tax);
+}
+
 } /* extern "C" */

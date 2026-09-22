@@ -31,4 +31,7 @@ object MicropolisNative {
     external fun saveCity(handle: Long, path: String): Int
     /** Load a city from `path`. Returns 1 on success, 0 on failure. */
     external fun loadCity(handle: Long, path: String): Int
+
+    /** Set the city tax rate (percent, 0..20). */
+    external fun setCityTax(handle: Long, tax: Int)
 }
