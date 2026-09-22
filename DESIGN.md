@@ -235,7 +235,20 @@ cmake --build android/build-android --target micropolis_smoke -j
 ```
 Known upstream warnings: two `-Wnonnull` in `fileio.cpp` (benign).
 
-**Next — task 002: design the C-ABI boundary.** Replace the `emscripten::val`
-pass-through with a native handle, and expose a stable C ABI (create/destroy,
-init, tick, read map/stats, apply tool) that Kotlin/JNI will call. Opus designs
-the contract; qwen fills the translations.
+**Task 002 COMPLETE and verified (2026-09-22).** The C-ABI boundary
+(`android/engine/include/micropolis_c.h` + `android/engine/src/micropolis_c.cpp`)
+is implemented and merged to `main`. A plain-C test, `micropolis_abi_smoke`,
+drives the engine through the ABI and passes on host; the boundary also
+cross-compiles into the arm64 engine lib. qwen wrote the implementation from the
+spec (in an isolated worktree); C↔C++ enum drift is a compile error via
+`static_assert`.
+
+**Binding gotcha (remember this):** `~Micropolis()` calls `setCallback(NULL, …)`,
+and `setCallback` `delete`s the previous callback. So the `Callback` passed to the
+engine MUST be heap-allocated — the engine owns and frees it. Never stack-allocate
+it (that was a bug in the task-001 spec; qwen correctly overrode it).
+
+**Next:** the JNI layer + a minimal Jetpack Compose app that calls the C ABI to
+generate/load a city, tick, and render the tile map (plan steps 2–3). The 35
+engine→host callbacks (a later task) can follow once the poll-based render loop
+works.

@@ -64,11 +64,16 @@ if [[ "$ISOLATE" -eq 1 ]]; then
   BRANCH="dispatch/$TASK"
   WORKDIR="$REPO/.worktrees/$SID"
   echo ">> isolate: worktree $WORKDIR on branch $BRANCH" >&2
-  git -C "$REPO" worktree remove --force "$WORKDIR" 2>/dev/null || true
+  # `git worktree remove` refuses a tree with submodules, so tear down by hand.
+  rm -rf "$WORKDIR"
+  git -C "$REPO" worktree prune
   git -C "$REPO" branch -D "$BRANCH" 2>/dev/null || true
   git -C "$REPO" worktree add -q -b "$BRANCH" "$WORKDIR" HEAD
-  # Bring the submodule into the worktree (checkout from shared objects, no clone).
-  git -C "$WORKDIR" submodule update --init --recursive
+  # Bring the submodule into the worktree, borrowing the main clone's objects
+  # (--reference-if-able) so we don't re-clone MicropolisCore over the network.
+  git -C "$WORKDIR" submodule update --init --recursive \
+      --reference-if-able "$REPO/.git/modules/MicropolisCore" 2>/dev/null || \
+    git -C "$WORKDIR" submodule update --init --recursive
   # Share a compiler cache so per-worktree cold builds stay cheap (optional).
   if command -v ccache >/dev/null; then
     export CMAKE_CXX_COMPILER_LAUNCHER=ccache CMAKE_C_COMPILER_LAUNCHER=ccache
@@ -121,7 +126,7 @@ if [[ "$ISOLATE" -eq 1 ]]; then
   git -C "$WORKDIR" --no-pager log --oneline "$HEAD_BEFORE"..HEAD >&2 || true
   echo ">> review:  git -C \"$REPO\" diff $HEAD_BEFORE..$BRANCH" >&2
   echo ">> merge:   git -C \"$REPO\" merge --ff-only $BRANCH" >&2
-  echo ">> cleanup: git -C \"$REPO\" worktree remove \"$WORKDIR\" && git -C \"$REPO\" branch -d $BRANCH" >&2
+  echo ">> cleanup: rm -rf \"$WORKDIR\" && git -C \"$REPO\" worktree prune && git -C \"$REPO\" branch -d $BRANCH" >&2
 else
   echo ">> new commits since dispatch:" >&2
   git -C "$REPO" --no-pager log --oneline "$HEAD_BEFORE"..HEAD >&2 || true

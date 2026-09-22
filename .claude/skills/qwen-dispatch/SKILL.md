@@ -49,7 +49,9 @@ For the full method, read `DESIGN.md`.
    qwen then works in a throwaway worktree (`.worktrees/`) on branch
    `dispatch/NNN-slug`, so it cannot touch the main tree at all. It uses `ccache`
    if installed, so per-worktree builds stay cheap. On exit the script prints the
-   `diff`, `merge --ff-only`, and `worktree remove` commands. Default (no flag)
+   `diff`, `merge --ff-only`, and cleanup commands. Because the worktree contains
+   the submodule, tear it down with `rm -rf <worktree> && git worktree prune`
+   (plain `git worktree remove` refuses a tree with submodules). Default (no flag)
    runs in the main tree — fine for small single tasks, which the clean-tree guard
    already protects.
 
