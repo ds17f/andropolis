@@ -248,7 +248,38 @@ and `setCallback` `delete`s the previous callback. So the `Callback` passed to t
 engine MUST be heap-allocated — the engine owns and frees it. Never stack-allocate
 it (that was a bug in the task-001 spec; qwen correctly overrode it).
 
-**Next:** the JNI layer + a minimal Jetpack Compose app that calls the C ABI to
-generate/load a city, tick, and render the tile map (plan steps 2–3). The 35
-engine→host callbacks (a later task) can follow once the poll-based render loop
-works.
+## 10. Android app (first light)
+
+Scaffolded 2026-09-22 under `android/` as a Gradle project. Harness reused from
+the sibling repo `~/Developer/micropolis-android` (see §11): **Gradle 8.10.2, AGP
+8.7.3, Kotlin 2.0.21, compileSdk 35, minSdk 24, Java 17**.
+
+- **Native:** Gradle `externalNativeBuild` (CMake 3.22.1) builds `libmicropolis.so`
+  from `android/app/src/main/cpp/CMakeLists.txt`, which `add_subdirectory`s
+  `android/engine` (the engine + C-ABI lib) and links a JNI bridge. ABIs:
+  `x86_64` (emulator) + `arm64-v8a` (devices). `ANDROID_STL=c++_shared`.
+- **JNI bridge:** `android/app/src/main/cpp/micropolis_jni.cpp` — one thin
+  function per native method, over `micropolis_c.h`. Kotlin surface:
+  `MicropolisNative` (object, `external fun`s; handle = `MicropolisEngine*` as Long).
+- **First-light UI is deliberately NOT Compose yet.** A plain custom `View`
+  (`MapView`) draws the 120×100 tiles as colored cells; `MainActivity` creates the
+  engine, generates a city, and ticks + redraws on a UI-thread timer. This is the
+  lowest-risk path to pixels on a device. Compose + a real tile atlas + a sim
+  thread come next. The UI is Opus-authored bring-up (getting the whole
+  APK+JNI pipeline to light up); feature UI work goes to qwen from here.
+- **Build & run:** the root `Makefile` — `make run` builds the APK, boots the
+  `Pixel_API_36` emulator headless, installs, and launches; `make screenshot`
+  grabs a PNG.
+
+**Next after first light:** move the sim to a background thread; real tile
+rendering; touch input → `doTool`; then the engine→host callbacks task.
+
+## 11. Sibling repo: `~/Developer/micropolis-android`
+
+A **parallel, independent** port with a different architecture: a pure-**Kotlin**
+port of the **micropolisj** (Java) engine (package `micropolisj.engine`), on branch
+`kotlin-qwen`, remote `ds17f/micropolis-android`. It was already "building &
+running" when found. It is **not** MicropolisCore and shares no engine code with
+this repo. We reuse its build harness (Gradle/AGP/Kotlin versions, Makefile
+shape) but keep the projects separate. These are two bets on the same goal; the
+user may reconcile them later.
