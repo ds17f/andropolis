@@ -19,9 +19,11 @@ class MainActivity : AppCompatActivity() {
     private var handle: Long = 0L
     private var currentTool = 11
     private lateinit var mapView: MapView
+    private lateinit var hud: android.widget.TextView
     private lateinit var buf: ShortArray
     private lateinit var sim: Handler
     private lateinit var ui: Handler
+    private val statsBuf = IntArray(10)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,6 +39,15 @@ class MainActivity : AppCompatActivity() {
 
         val root = LinearLayout(this)
         root.orientation = LinearLayout.VERTICAL
+
+        hud = android.widget.TextView(this).apply {
+            setBackgroundColor(0xCC000000.toInt())
+            setTextColor(0xFFFFFFFF.toInt())
+            setPadding(24, 16, 24, 16)
+        }
+        root.addView(hud, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT))
 
         root.addView(
             mapView,
@@ -104,6 +115,14 @@ class MainActivity : AppCompatActivity() {
         MicropolisNative.copyTiles(handle, buf)
         val tilesCopy = buf.copyOf()
         ui.post { mapView.update(tilesCopy) }
+        MicropolisNative.getStats(handle, statsBuf)
+        val funds = statsBuf[1]; val pop = statsBuf[2]; val score = statsBuf[3]
+        val year = statsBuf[4]; val month = statsBuf[5]
+        val months = arrayOf("Jan","Feb","Mar","Apr","May","Jun",
+                            "Jul","Aug","Sep","Oct","Nov","Dec")
+        val monthName = months.getOrElse(month) { "?" }
+        val text = "Funds: \$$funds    $monthName $year   Pop: $pop   Score: $score"
+        ui.post { hud.text = text }
         sim.postDelayed({ tickLoop() }, 100)
     }
 
