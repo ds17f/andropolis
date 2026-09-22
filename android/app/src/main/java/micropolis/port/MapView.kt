@@ -27,6 +27,7 @@ class MapView(context: Context) : View(context) {
     private val dstRect = RectF()
 
     var onTileTap: ((Int, Int) -> Unit)? = null
+    var buildEnabled: Boolean = true
 
     private var scale = 1f
     private var panX = 0f
@@ -121,8 +122,10 @@ class MapView(context: Context) : View(context) {
         }
 
         override fun onSingleTapUp(e: MotionEvent): Boolean {
-            val (tileX, tileY) = convertToTile(e)
-            onTileTap?.invoke(tileX, tileY)
+            if (buildEnabled) {
+                val (tileX, tileY) = convertToTile(e)
+                onTileTap?.invoke(tileX, tileY)
+            }
             performClick()
             return true
         }

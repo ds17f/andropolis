@@ -24,6 +24,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var sim: Handler
     private lateinit var ui: Handler
     private val statsBuf = IntArray(10)
+    private var buildMode = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,20 +61,26 @@ class MainActivity : AppCompatActivity() {
         )
 
         val tools = listOf(
-            "Bulldozer" to 7,
-            "Road" to 9,
-            "Rail" to 8,
-            "Wire" to 6,
-            "Residential" to 0,
-            "Commercial" to 1,
-            "Industrial" to 2,
-            "Police" to 4,
-            "Fire" to 3,
-            "Park" to 11
+            "Bulldozer" to 7, "Road" to 9, "Rail" to 8, "Wire" to 6, "Park" to 11,
+            "Resid" to 0, "Comm" to 1, "Ind" to 2, "Police" to 4, "Fire" to 3,
+            "Stadium" to 10, "Seaport" to 12, "Airport" to 15,
+            "Coal" to 13, "Nuclear" to 14, "Query" to 5
         )
 
         val barLayout = LinearLayout(this)
         barLayout.orientation = LinearLayout.HORIZONTAL
+
+        // Mode toggle button (first in bar)
+        val modeButton = Button(this).apply {
+            text = "Build"
+            setOnClickListener {
+                buildMode = !buildMode
+                mapView.buildEnabled = buildMode
+                text = if (buildMode) "Build" else "Move"
+            }
+        }
+        barLayout.addView(modeButton)
+
         for ((label, value) in tools) {
             val button = Button(this).apply {
                 text = label
