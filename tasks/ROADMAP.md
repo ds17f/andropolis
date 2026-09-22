@@ -28,7 +28,7 @@ Deeper design notes for the big items live in `BACKLOG.md`.
 - [ ] Messages / notifications feed
 
 ## 5. Better input  (see BACKLOG.md)
-- [ ] Drag-to-build roads / rail / wire (`toolDrag`)
+- [x] 018 — Drag-to-build (paint along finger) + navigate/build split  ✅ merged
 - [ ] Staged build mode: preview + confirm/cancel with cost (`ToolEffects`).
       Opus designs the C-ABI staged-effects extension.
 
