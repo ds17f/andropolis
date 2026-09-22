@@ -34,3 +34,33 @@ computing tool effects from applying them:
 
 **Why staged is nice:** it also gives us undo for free and a natural place to show
 "not enough funds" before spending.
+
+## Navigate vs. interact (disambiguate pan/zoom from building)
+
+Added 2026-09-22. Right now a tap builds and a drag pans, which is ambiguous and
+imprecise — easy to build when you meant to move the map. Need a clear way to
+separate **moving the map** from **interacting with the land**. Options to weigh:
+- An explicit **mode toggle** (Move ↔ Build) in the UI.
+- A gesture split (e.g. one finger pans, long-press-then-drag builds; or a build
+  cursor/crosshair you position, then confirm).
+This pairs naturally with the staged build-mode item above.
+
+## UI completion and game options
+
+Added 2026-09-22. "The UI stuff needs love." Not urgent, but needed to *complete
+the game*:
+- **Finish the bottom menu.** The tool bar is incomplete/cut off. Show all tools,
+  indicate the currently selected tool, consider icons over text, group sensibly.
+- **Speed of play** control — pause / slow / medium / fast (engine `setSpeed`).
+- **Tax rate** control (engine `setCityTax`).
+- **Overlay / popup windows** that complete the classic game:
+  - Budget window (tax + spending sliders).
+  - City evaluation window (mayor rating, problems, stats).
+  - Graphs / history (population, funds, crime, pollution over time).
+  - Map overlays (power grid, crime, pollution, land value, pop density, traffic).
+  - Messages / notifications feed; disasters menu.
+  - New city / regenerate; save / load.
+- **General polish pass** — layout, spacing, theming, funds/date formatting,
+  selected-tool highlight.
+
+These break into several `tasks/NNN-*.md` dispatches (Opus specs each, qwen builds).
