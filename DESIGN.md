@@ -285,9 +285,22 @@ the sibling repo `~/Developer/micropolis-android` (see §11): **Gradle 8.10.2, A
   `idx = value & 0x3FF`). Authentic terrain now shows (dirt/forest/water). Fully
   qwen — it sourced/copied the atlas and wrote the renderer.
 
-**Next:** engine→host callbacks task (messages, sounds, funds/date), and UI to make
-building legible/usable — a tool picker and zoom/pan (a full-map park is only a few
-pixels). All qwen dispatches; Opus specs + reviews.
+- Task 005 (done, verified): zoom + pan viewport (pinch/drag, square fit-to-width
+  tiles, clamped pan, tap under transform). qwen impl; Opus fixed one API-compat
+  detail (`GestureDetector.onScroll` first param is `MotionEvent?` on API 34+).
+- Task 006 (done, verified): tool picker — a scrollable button bar; taps use the
+  selected tool. Fully qwen.
+- Task 007 (done, verified): stats HUD (funds/date/pop/score) polled from
+  `getStats` each tick. Fully qwen. (True engine→host callbacks for discrete
+  events — messages/sounds — deferred until needed; polling covers the HUD.)
+
+**Known polish item:** at startup the map sits at the top with a dark gap below;
+it only centers vertically after a gesture (`clampPan` isn't called on first
+layout). Fix later (call it in `onSizeChanged`).
+
+**Next candidates:** initial map centering; real engine→host callbacks for
+event notifications/sounds; save/load a city; playtesting the sim. All qwen
+dispatches; Opus specs + reviews.
 
 ## 11. Sibling repo: `~/Developer/micropolis-android`
 
