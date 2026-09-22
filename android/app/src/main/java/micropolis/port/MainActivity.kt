@@ -39,6 +39,7 @@ class MainActivity : AppCompatActivity() {
 
         val root = LinearLayout(this)
         root.orientation = LinearLayout.VERTICAL
+        root.fitsSystemWindows = true
 
         hud = android.widget.TextView(this).apply {
             setBackgroundColor(0xCC000000.toInt())
