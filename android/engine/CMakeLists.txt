@@ -29,6 +29,10 @@ target_compile_features(micropolis_engine PUBLIC cxx_std_17)
 
 # C-ABI smoke test: a plain C program that drives the engine through the C ABI.
 # Proves the boundary is truly C-callable. LINKER_LANGUAGE=CXX pulls in libstdc++.
-add_executable(micropolis_abi_smoke ${CMAKE_CURRENT_SOURCE_DIR}/test/abi_smoke.c)
-target_link_libraries(micropolis_abi_smoke PRIVATE micropolis_engine)
-set_target_properties(micropolis_abi_smoke PROPERTIES LINKER_LANGUAGE CXX)
+# Host-only: the Android/Gradle build reuses this dir via add_subdirectory and
+# only wants the library, so skip the test executable when cross-compiling.
+if(NOT ANDROID)
+    add_executable(micropolis_abi_smoke ${CMAKE_CURRENT_SOURCE_DIR}/test/abi_smoke.c)
+    target_link_libraries(micropolis_abi_smoke PRIVATE micropolis_engine)
+    set_target_properties(micropolis_abi_smoke PROPERTIES LINKER_LANGUAGE CXX)
+endif()

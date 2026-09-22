@@ -3,6 +3,9 @@
 build/
 build-*/
 local.properties
+android/local.properties
+android/.kotlin/
+android/app/.cxx/
 *.iml
 .idea/
 
