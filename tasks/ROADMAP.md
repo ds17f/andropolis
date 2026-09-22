@@ -21,8 +21,8 @@ Deeper design notes for the big items live in `BACKLOG.md`.
 - [x] 013 — Speed of play: pause / slow / med / fast (tick-loop based)  ✅ merged
 - [x] 014 — Tax rate control (`setCityTax` binding + UI)  ✅ merged
 - [x] 015 — Selected-tool highlight  ✅ merged  (icons/grouping still TODO)
-- [ ] Budget window
-- [ ] City evaluation window (rating, problems, stats)
+- [x] Budget window (016+017)  ✅ merged
+- [x] City evaluation window (016+017)  ✅ merged
 - [ ] Map overlays (power, crime, pollution, land value, pop density, traffic)
 - [ ] Graphs / history window
 - [ ] Messages / notifications feed
