@@ -101,7 +101,10 @@ dispatch) and `AGENTS.md` (auto-loaded by `pi`).
 - **Opus owns:** architecture, the C-ABI/JNI boundary contract, NDK/CMake build
   setup, and review of **every** diff before it lands.
 - **qwen owns:** bulk translation of well-specified units, Compose screens, glue,
-  and tests — with the ability to build and run to verify itself.
+  and tests — with the ability to build and run to verify itself. **Also the
+  legwork:** researching the codebase, searching, and sourcing/copying assets. Put
+  it all in the task spec. Do NOT burn Opus tokens on work qwen can do — the point
+  of this setup is the open-weights model, not premium tokens (see `CLAUDE.md`).
 
 ## 5. Tooling: `pi` + Ollama
 
