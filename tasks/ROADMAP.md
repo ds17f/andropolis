@@ -29,7 +29,7 @@ Deeper design notes for the big items live in `BACKLOG.md`.
 
 ## 5. Better input  (see BACKLOG.md)
 - [x] 018 — Drag-to-build (paint along finger) + navigate/build split  ✅ merged
-- [ ] Staged build mode: preview + confirm/cancel with cost (`ToolEffects`).
+- [x] 019 — Staged build: preview + confirm/cancel (UI-only)  ✅ merged
       Opus designs the C-ABI staged-effects extension.
 
 ## 6. Engine → host events  (needs the callback plumbing; Opus designs C-ABI/JNI)
