@@ -9,10 +9,9 @@ Deeper design notes for the big items live in `BACKLOG.md`.
 - [ ] Verify precise placement on device; tweak tap targeting / zoom if needed
 
 ## 2. Save / load
-- [ ] Extend the C ABI with a **save** function (engine can save; C ABI only has
-      `loadCity`). Opus designs the C-ABI/JNI addition; qwen fills it in.
-- [ ] Save current city to app storage + load it back (UI buttons)
-- [ ] New city / regenerate button
+- [x] 011 — C-ABI **save** function + JNI + Kotlin for save & load  ✅ merged
+- [x] 012 — Save / Load / New buttons (city.cty in filesDir)  ✅ merged
+      (code-verified + builds/runs; on-device round-trip to be confirmed by touch)
 
 ## 3. Playtest milestone
 - [ ] Build coal plant + residential zones + roads, run the sim, confirm
