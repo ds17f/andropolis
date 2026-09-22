@@ -3,7 +3,8 @@
 #
 # Targets:
 #   make build      Build the debug APK (Gradle + NDK).
-#   make run        Build, boot the emulator, install, and launch the app.
+#   make run        Build, boot the emulator (headless), install, and launch.
+#   make run-headful  Same as run, but shows the emulator window.
 #   make install    Install the APK to a connected/running device.
 #   make launch     Launch the app on a connected/running device.
 #   make screenshot Grab a PNG from the device into build/screenshot.png.
@@ -36,7 +37,7 @@ define wait_boot
 done
 endef
 
-.PHONY: build run install launch screenshot log stop clean
+.PHONY: build run run-headful install launch screenshot log stop clean
 
 build:
 	$(GRADLE) :app:assembleDebug
@@ -58,6 +59,13 @@ endif
 	$(call wait_boot)
 	$(ADB) install -r $(APK)
 	@$(ADB) shell monkey -p $(PKG) -c android.intent.category.LAUNCHER 1
+
+# Same as run, but shows the emulator window. Kills any headless instance of the
+# same AVD first (only one emulator per AVD can run at a time).
+run-headful:
+	@pkill -f "emulator.*$(AVD)" 2>/dev/null || true
+	@sleep 2
+	@$(MAKE) HEADLESS=0 run
 
 screenshot:
 	@mkdir -p build

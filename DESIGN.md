@@ -281,5 +281,6 @@ port of the **micropolisj** (Java) engine (package `micropolisj.engine`), on bra
 `kotlin-qwen`, remote `ds17f/micropolis-android`. It was already "building &
 running" when found. It is **not** MicropolisCore and shares no engine code with
 this repo. We reuse its build harness (Gradle/AGP/Kotlin versions, Makefile
-shape) but keep the projects separate. These are two bets on the same goal; the
-user may reconcile them later.
+shape) but keep the projects separate. **Decision (2026-09-22): the user is ditching
+`micropolis-android` in favor of this repo.** This C++/NDK port is the active
+path; the Kotlin repo stays separate and is not invested in further.
