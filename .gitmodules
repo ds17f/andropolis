@@ -1,0 +1,3 @@
+[submodule "MicropolisCore"]
+	path = MicropolisCore
+	url = https://github.com/SimHacker/MicropolisCore.git
