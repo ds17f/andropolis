@@ -120,5 +120,5 @@ run, use `QWEN_MODEL=qwen3.8-27b-64k:latest` (also 64K).
 | Speed (generation) | ~75 tok/s | ~51 tok/s |
 
 Both needed no review fixes. coder-next is 2.4× faster, so it stays the default.
-qwen3.8 is a good second choice when a task needs careful minimal edits. Do an early **bake-off** on one real
-spec with both models. Let the diffs decide. Read `DESIGN.md` section 6.
+qwen3.8 is a good second choice when a task needs careful minimal edits. Repeat the
+bake-off on a harder task when there is one. Read `DESIGN.md` section 6.

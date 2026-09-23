@@ -11,7 +11,7 @@
 #               after. Use for large/risky tasks and for parallel dispatches.
 #
 # Env:
-#   QWEN_MODEL             executor model id (default: qwen3-coder-next:latest)
+#   QWEN_MODEL             executor model id (default: qwen3-coder-next-64k:latest)
 #   QWEN_PROVIDER          pi provider      (default: ollama)
 #   DISPATCH_ALLOW_DIRTY=1 skip the clean-tree guard (not recommended)
 set -euo pipefail
