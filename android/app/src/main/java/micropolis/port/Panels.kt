@@ -266,25 +266,28 @@ internal fun MainActivity.applyMinimapMode() {
 }
 
 internal fun MainActivity.showSettingsPanel(onDismiss: (() -> Unit)? = null) {
-    showPanel("Settings", listOf(PanelTab("General") {
-        LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            addView(settingsToggle("Minimap navigation",
-                "Show the minimap and move with it (fixed zoom). Off = pinch zoom.", minimapNav) { c ->
-                minimapNav = c; prefs.edit().putBoolean("minimapNav", c).apply(); applyMinimapMode()
-            })
-            addView(settingsToggle("Sound effects",
-                "City sounds and build feedback.", sfx.enabled) { c ->
-                sfx.enabled = c; prefs.edit().putBoolean("sound", c).apply()
-            })
-            addView(settingsToggle("Annual report",
-                "Pause at each new year and show the city's report card.", annualReportEnabled) { c ->
-                annualReportEnabled = c; prefs.edit().putBoolean("annualReport", c).apply()
-            })
-            addView(settingsToggle("Auto go to events",
-                "Jump the map to fires, disasters and other alerts as they happen.", autoGoto) { c ->
-                autoGoto = c; prefs.edit().putBoolean("autoGoto", c).apply()
-            })
-        }
-    }), onDismiss)
+    showPanel("Settings", listOf(
+        PanelTab("General") {
+            LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(settingsToggle("Minimap navigation",
+                    "Show the minimap and move with it (fixed zoom). Off = pinch zoom.", minimapNav) { c ->
+                    minimapNav = c; prefs.edit().putBoolean("minimapNav", c).apply(); applyMinimapMode()
+                })
+                addView(settingsToggle("Sound effects",
+                    "City sounds and build feedback.", sfx.enabled) { c ->
+                    sfx.enabled = c; prefs.edit().putBoolean("sound", c).apply()
+                })
+                addView(settingsToggle("Annual report",
+                    "Pause at each new year and show the city's report card.", annualReportEnabled) { c ->
+                    annualReportEnabled = c; prefs.edit().putBoolean("annualReport", c).apply()
+                })
+                addView(settingsToggle("Auto go to events",
+                    "Jump the map to fires, disasters and other alerts as they happen.", autoGoto) { c ->
+                    autoGoto = c; prefs.edit().putBoolean("autoGoto", c).apply()
+                })
+            }
+        },
+        PanelTab("Background") { backgroundSettingsTab() }
+    ), onDismiss)
 }
