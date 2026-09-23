@@ -26,8 +26,8 @@ Deeper design notes for the big items live in `BACKLOG.md`.
 - [x] Budget window (016+017)  ✅ merged
 - [x] City evaluation window (016+017)  ✅ merged
 - [x] Map overlays (034 heatmap tinting; City→Stats bars 042)
-- [ ] Graphs / history window
-- [ ] Messages / notifications feed
+- [x] Graphs / history window (044)
+- [x] Messages feed (045)
 
 ## 5. Better input  (see BACKLOG.md)
 - [x] 018 — Drag-to-build (paint along finger) + navigate/build split  ✅ merged
@@ -36,7 +36,7 @@ Deeper design notes for the big items live in `BACKLOG.md`.
 
 ## 6. Engine → host events  (needs the callback plumbing; Opus designs C-ABI/JNI)
 - [x] Wire the key callbacks — event bridge 037 (QueueCallback + poll_event), consumption 038
-- [ ] Sounds
+- [x] Sounds (046, 049)
 - [x] Disasters menu / triggers (Simulation → Disasters cards, 032/039)
 
 ---
@@ -46,3 +46,19 @@ never a trailing `&`. See `CLAUDE.md`.
 
 - [x] 024 — Modern styling pass (rounded corners, cards, spacing, depth)  ✅ merged
 - [x] 025 — Trial mode (build → Keep/Revert), replaces tile-paint preview  ✅ merged
+
+## 7. Ambient background play + notifications  (DESIGN.md §12)
+User decisions (2026-09-23): a separate **background pace** setting; every event
+group (Disasters, New year, City problems, Milestones) is its own setting (notify /
+pause); "run in background" is a setting too.
+- [x] 054 — Deterministic replay: RNG capture, seeded load, `test/determinism.c` (Opus)
+- [ ] 055 — Settings: "Background & notifications" section (run in background, pace,
+      per-group notify / pause). Prefs only, no behaviour yet. (qwen)
+- [ ] 056 — Notifier: channels per group, POST_NOTIFICATIONS request, post with a
+      deep link (tile x/y); tap opens the app and centres the map. (qwen, Opus reviews)
+- [ ] 057 — Background engine: sidecar (anchor, rng, pace), probe on background,
+      exact alarm, alarm receiver replays + notifies, catch-up on foreground,
+      boot re-arm, WorkManager safety net. (Opus designs the threading/contract;
+      qwen parts)
+- [ ] 058 — Deterministic app-side disaster roll (seeded from snapshot + month) so
+      background and foreground agree. (qwen)

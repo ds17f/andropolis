@@ -432,6 +432,22 @@ related seed) and snapshot it in the sidecar alongside `.cty`. With RNG capture,
   Optionally capture/restore the cycle counters too to shrink even that.
 - Required C-ABI: `int64_t micropolis_get_rng(e)` / `void micropolis_set_rng(e, int64_t)`.
 
+**Built and verified (2026-09-23, `test/determinism.c`) — with one correction.**
+Setting the RNG *after* `load` is not enough: `loadFile()` calls `initWillStuff()`
+(which reseeds from `gettimeofday`) and then `doSimInit()`, which scans the whole map
+with that clock seed, so zones change and `load(S)` differs on every run. The recipe
+is therefore **fresh engine → `init` → `micropolis_load_city_seeded(S, rng)` → tick N**:
+the seeded load re-runs the post-load init with our RNG state
+(`android/engine/src/micropolis_seeded.cpp`; it opens the class in one TU, upstream
+stays untouched). The test replays one snapshot twice and requires identical events,
+event ticks, map and funds, across processes, Debug/Release and `MALLOC_PERTURB_`;
+a different RNG state must diverge. It also found that GCC `-O2` dropped the
+pre-construction `memset` in `micropolis_create` (lifetime DSE), leaving `callback`
+and `mapBase` garbage — fixed with a compiler barrier.
+Replays must also tick at a fixed engine speed (3) and without our app-side disaster
+roll using `java.util.Random` — background disasters need a seed derived from the
+snapshot (e.g. `rng0` and the game month).
+
 **Fallback if RNG capture proves infeasible:** drop to a coarser promise — the
 background advances the city and notifies, but the *exact* event tick is best-effort and
 foregrounding lands "close enough" rather than frame-exact. This degrades B toward a
