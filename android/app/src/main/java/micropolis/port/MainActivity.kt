@@ -68,6 +68,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pillIcon: ImageView
     private lateinit var pillName: TextView
     private lateinit var bottom: LinearLayout
+    private lateinit var minimap: MinimapView
     private lateinit var toolPill: LinearLayout
     private lateinit var undoBtn: Button
     private lateinit var panelBar: LinearLayout
@@ -492,14 +493,17 @@ class MainActivity : AppCompatActivity() {
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT))
 
-        root.addView(
-            mapView,
-            LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                1f
-            )
-        )
+        minimap = MinimapView(this)
+        val mapContainer = android.widget.FrameLayout(this)
+        mapContainer.addView(mapView, android.widget.FrameLayout.LayoutParams(
+            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+            android.widget.FrameLayout.LayoutParams.MATCH_PARENT))
+        mapContainer.addView(minimap, android.widget.FrameLayout.LayoutParams(dp(120), dp(100)).apply {
+            gravity = android.view.Gravity.TOP or android.view.Gravity.END
+            setMargins(0, dp(8), dp(8), 0)
+        })
+        root.addView(mapContainer, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
         // ===== Bottom controls =====
         bottom = LinearLayout(this).apply {
@@ -617,6 +621,9 @@ class MainActivity : AppCompatActivity() {
         }
         // One snapshot per build stroke drives Undo/Redo.
         mapView.onStrokeEnd = { built -> if (built) commitSnapshot() }
+        // Wire minimap
+        minimap.onTileSelected = { tx, ty -> mapView.centerOnTile(tx, ty) }
+        mapView.onViewportChanged = { l, t, r, b -> minimap.setViewport(l, t, r, b) }
 
         // Setup on sim thread
         sim.post {
@@ -860,7 +867,7 @@ class MainActivity : AppCompatActivity() {
         repeat(speedTicks[speed]) { MicropolisNative.simTick(handle) }
         MicropolisNative.copyTiles(handle, buf)
         val tilesCopy = buf.copyOf()
-        ui.post { mapView.update(tilesCopy) }
+        ui.post { mapView.update(tilesCopy); minimap.update(tilesCopy) }
 
         // Refresh overlay when one is active
         if (currentOverlay != 0 && cityReady && handle != 0L) {

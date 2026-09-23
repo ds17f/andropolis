@@ -27,6 +27,7 @@ class MapView(context: Context) : View(context) {
 
     var onTileTap: ((Int, Int) -> Unit)? = null
     var onStrokeEnd: ((built: Boolean) -> Unit)? = null
+    var onViewportChanged: ((Float, Float, Float, Float) -> Unit)? = null
     
     var toolFootprint: Int = 1            // set by MainActivity; >1 == place-on-lift
     private var ghostX = -1               // tile coords of the ghost anchor; -1 == no ghost
@@ -65,6 +66,12 @@ class MapView(context: Context) : View(context) {
         overlayMode = mode
         overlayData = data
         postInvalidate()
+    }
+
+    fun centerOnTile(tx: Int, ty: Int) {
+        panX = width / 2f - (tx + 0.5f) * tileSize * scale
+        panY = height / 2f - (ty + 0.5f) * tileSize * scale
+        clampPan(); invalidate()
     }
 
     // Build-gesture state. The first touch is DEFERRED: a lone finger that turns into a
@@ -292,6 +299,14 @@ class MapView(context: Context) : View(context) {
             canvas.drawRect(r, ghostFill)
             canvas.drawRect(r, ghostStroke)
         }
+        
+        // Report visible region in tile coords
+        onViewportChanged?.invoke(
+            (-panX / scale) / tileSize,
+            (-panY / scale) / tileSize,
+            ((width - panX) / scale) / tileSize,
+            ((height - panY) / scale) / tileSize
+        )
     }
 
     private inner class ScaleListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {
