@@ -46,6 +46,27 @@ class MapView(context: Context) : View(context) {
     private var lastBuiltTile: Pair<Int, Int>? = null
     private var built = false
 
+    // Overlay state + heatmap LUT
+    private var overlayMode = 0                 // 0 == off
+    private var overlayData: ByteArray? = null
+    private val overlayPaint = Paint()
+    // intensity 0..255 -> ARGB heat colour (transparent at 0, green→yellow→red as it rises)
+    private val heatLut = IntArray(256) { i ->
+        if (i == 0) 0 else {
+            val t = i / 255f
+            val r = (255 * kotlin.math.min(1f, t * 2f)).toInt()
+            val g = (255 * kotlin.math.min(1f, (1f - t) * 2f)).toInt()
+            val a = (60 + 140 * t).toInt().coerceIn(0, 200)
+            (a shl 24) or (r shl 16) or (g shl 8)
+        }
+    }
+
+    fun setOverlay(mode: Int, data: ByteArray?) {
+        overlayMode = mode
+        overlayData = data
+        postInvalidate()
+    }
+
     // Build-gesture state. The first touch is DEFERRED: a lone finger that turns into a
     // two-finger pan must not lay a tile, so a tap builds on UP and a drag builds on MOVE.
     private var pendingDown = false        // one finger down, not yet built (tap vs pan undecided)
@@ -239,6 +260,21 @@ class MapView(context: Context) : View(context) {
                 srcRect.set(col * 16, row * 16, col * 16 + 16, row * 16 + 16)
                 dstRect.set(x * tileSize, y * tileSize, (x + 1) * tileSize, (y + 1) * tileSize)
                 canvas.drawBitmap(atlas, srcRect, dstRect, paint)
+            }
+        }
+        
+        // Draw overlay heatmap tint
+        val ov = overlayData
+        if (overlayMode != 0 && ov != null && ov.size >= cols * rows) {
+            for (x in 0 until cols) {
+                val base = x * rows
+                for (y in 0 until rows) {
+                    val v = ov[base + y].toInt() and 0xFF
+                    if (v == 0) continue
+                    overlayPaint.color = heatLut[v]
+                    dstRect.set(x * tileSize, y * tileSize, (x + 1) * tileSize, (y + 1) * tileSize)
+                    canvas.drawRect(dstRect, overlayPaint)
+                }
             }
         }
         

@@ -46,6 +46,9 @@ class MainActivity : AppCompatActivity() {
     private var cursor = -1                          // index of the current live state
     private var snapSeq = 0
     private val undoCap = 24
+    private var currentOverlay = 0
+    private val overlayBuf = ByteArray(120 * 100)
+    private val overlayNames = arrayOf("Off","Population","Traffic","Pollution","Land value","Crime","Growth","Power")
     // engine gToolSize, index = tool value; default 1 for anything past the table
     private val toolFootprints = intArrayOf(3,3,3,3, 3,1,1,1, 1,1,4,1, 4,4,4,6, 1,1,1,1)
     private fun footprintOf(tool: Int) = toolFootprints.getOrElse(tool) { 1 }
@@ -67,6 +70,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var undoBtn: Button
     private lateinit var panelBar: LinearLayout
     private lateinit var simState: TextView
+    private lateinit var overlayState: TextView
 
     // Road / rail / wire draw straight axis-locked lines when dragged.
     private fun isStraightLineTool(tool: Int) = tool == 6 || tool == 8 || tool == 9
@@ -570,7 +574,7 @@ class MainActivity : AppCompatActivity() {
             setTextColor(0xFF9AA7B4.toInt())
             textSize = 11f
         }
-        val overlayState = TextView(this).apply {
+        overlayState = TextView(this).apply {
             text = "Off"
             setTextColor(0xFF9AA7B4.toInt())
             textSize = 11f
@@ -582,20 +586,7 @@ class MainActivity : AppCompatActivity() {
         }
         panelBar.addView(buildPill("⏩", "Simulation", simState) { showSimulationPanel() })
         panelBar.addView(buildPill("📊", "City", cityState) { showCityPanel() })
-        panelBar.addView(buildPill("🗺", "Overlay", overlayState) {
-            showPanel(
-                "Map overlay",
-                listOf(
-                    PanelTab("Soon", {
-                        TextView(this).apply {
-                            text = "Overlays — coming soon"
-                            setTextColor(0xFF9AA7B4.toInt())
-                            setPadding(0, dp(8), 0, dp(8))
-                        }
-                    })
-                )
-            )
-        })
+        panelBar.addView(buildPill("🗺", "Overlay", overlayState) { showOverlayPanel() })
         root.addView(panelBar, root.indexOfChild(bottom))
 
         root.addView(bottom)
@@ -822,6 +813,30 @@ class MainActivity : AppCompatActivity() {
         ))
     }
 
+    private fun showOverlayPanel() {
+        showPanel("Map overlay", listOf(PanelTab("Mode") {
+            LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                overlayNames.forEachIndexed { kind, name ->
+                    addView(Button(this@MainActivity).apply {
+                        text = name
+                        val on = kind == currentOverlay
+                        background = roundedBg(if (on) 0xFFF5A623.toInt() else 0x1FFFFFFF, 12)
+                        setTextColor(if (on) 0xFF1A1207.toInt() else 0xFFEEF2F6.toInt())
+                        stateListAnimator = null
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) }
+                        setOnClickListener {
+                            currentOverlay = kind
+                            overlayState.text = name
+                            if (kind == 0) mapView.setOverlay(0, null)
+                        }
+                    })
+                }
+            }
+        }))
+    }
+
     private fun tickLoop() {
         if (cityReady && handle != 0L) {
             val now = android.os.SystemClock.uptimeMillis()
@@ -834,6 +849,13 @@ class MainActivity : AppCompatActivity() {
         MicropolisNative.copyTiles(handle, buf)
         val tilesCopy = buf.copyOf()
         ui.post { mapView.update(tilesCopy) }
+
+        // Refresh overlay when one is active
+        if (currentOverlay != 0 && cityReady && handle != 0L) {
+            MicropolisNative.copyOverlay(handle, currentOverlay, overlayBuf)
+            val snap = overlayBuf.copyOf()
+            ui.post { mapView.setOverlay(currentOverlay, snap) }
+        }
         MicropolisNative.getStats(handle, statsBuf)
         val funds = statsBuf[1]; val pop = statsBuf[2]; val score = statsBuf[3]
         val year = statsBuf[4]; val month = statsBuf[5]
