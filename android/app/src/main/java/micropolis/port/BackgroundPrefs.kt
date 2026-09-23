@@ -6,8 +6,8 @@ import android.content.SharedPreferences
 object BackgroundPrefs {
     const val KEY_ENABLED = "bgEnabled"
     const val KEY_PACE = "bgPace"                     // index into PACE_YEARS_PER_HOUR
-    val PACE_YEARS_PER_HOUR = intArrayOf(1, 2, 5, 10)
-    const val DEFAULT_PACE = 2                        // 5 game-years per hour
+    val PACE_YEARS_PER_HOUR = intArrayOf(5, 10, 25, 50, 100)
+    const val DEFAULT_PACE = 1                        // 10 game-years per hour
 
     /** Event groups: id (used in pref keys), title, description, default notify, default pause. */
     class Group(val id: String, val title: String, val desc: String, val notify: Boolean, val pause: Boolean)

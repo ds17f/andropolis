@@ -32,14 +32,14 @@ internal fun MainActivity.backgroundSettingsTab(): View {
 
     // 3. Pace selection grid
     val paceGrid = GridLayout(this).apply {
-        columnCount = 4
+        columnCount = 5
     }
     val paceHandles = ArrayList<CardHandle>()
     fun selectPace(sel: Int) {
         paceHandles.forEachIndexed { i, h -> h.setSelected(i == sel) }
     }
-    val paceGlyphs = arrayOf("🐢", "🚶", "🚗", "🚀")
-    val paceLabels = arrayOf("1 yr/h", "2 yrs/h", "5 yrs/h", "10 yrs/h")
+    val paceGlyphs = arrayOf("🐢", "🚶", "🚗", "✈", "🚀")
+    val paceLabels = arrayOf("5 yrs/h", "10 yrs/h", "25 yrs/h", "50 yrs/h", "100 yrs/h")
     val paceIndex = BackgroundPrefs.paceIndex(prefs)
     for (i in BackgroundPrefs.PACE_YEARS_PER_HOUR.indices) {
         val h = panelCard(paceGlyphs[i], paceLabels[i]) {
