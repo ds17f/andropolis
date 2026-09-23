@@ -39,6 +39,9 @@ class MainActivity : AppCompatActivity() {
     private val savePath by lazy { java.io.File(filesDir, "city.cty").absolutePath }
     private val autosavePath by lazy { java.io.File(filesDir, "autosave.cty").absolutePath }
     private val prefs by lazy { getSharedPreferences("micropolis", MODE_PRIVATE) }
+    private val citiesDir by lazy { java.io.File(filesDir, "cities").apply { mkdirs() } }
+    private fun sanitize(name: String) = name.trim().replace(Regex("[^A-Za-z0-9 _-]"), "").ifEmpty { "City" }
+    private fun cityFile(name: String) = java.io.File(citiesDir, "$name.cty")
     private var cityName: String = "Micropolis"
     @Volatile private var cityReady = false      // true once a city exists (guard autosave)
     private var lastAutosaveMs = 0L
@@ -538,8 +541,8 @@ class MainActivity : AppCompatActivity() {
                                 }
                             }
                         }
-                        "Save city" -> sim.post { MicropolisNative.saveCity(handle, savePath) }
-                        "Load city" -> sim.post { MicropolisNative.loadCity(handle, savePath) }
+                        "Save city" -> showSaveDialog()
+                        "Load city" -> showLoadDialog()
                         else -> if (item.title.toString().startsWith("Annual report")) {
                             annualReportEnabled = !annualReportEnabled
                             prefs.edit().putBoolean("annualReport", annualReportEnabled).apply()
@@ -1133,6 +1136,69 @@ class MainActivity : AppCompatActivity() {
             minimap.visibility = View.GONE
             mapView.setNavLocked(false, navZoom)
         }
+    }
+
+    private fun showSaveDialog() {
+        val input = android.widget.EditText(this).apply { setText(cityName); setSingleLine() }
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Save city as")
+            .setView(input)
+            .setPositiveButton("Save") { _, _ ->
+                val name = sanitize(input.text.toString())
+                val path = cityFile(name).absolutePath
+                cityName = name; prefs.edit().putString("cityName", name).apply(); cityTitle.text = name
+                sim.post { MicropolisNative.saveCity(handle, path); MicropolisNative.saveCity(handle, autosavePath) }
+                showBanner("Saved “$name”")
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showLoadDialog() {
+        val files = citiesDir.listFiles { f: java.io.File -> f.name.endsWith(".cty") }
+            ?.sortedWith(compareBy { it.name })
+        val fileList = files?.toTypedArray() ?: emptyArray()
+        val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(this)
+        val col = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(16), dp(20), dp(24))
+            setBackgroundColor(0xFF12161C.toInt())
+        }
+        col.addView(TextView(this).apply {
+            text = "Load city"; setTextColor(0xFFEEF2F6.toInt()); textSize = 18f
+            setTypeface(null, android.graphics.Typeface.BOLD); setPadding(0, 0, 0, dp(8))
+        })
+        if (fileList.isEmpty()) {
+            col.addView(TextView(this).apply { text = "No saved cities yet."; setTextColor(0xFF9AA7B4.toInt()); setPadding(0, dp(8), 0, dp(8)) })
+        }
+        for (f in fileList) {
+            val name = f.name.removeSuffix(".cty")
+            col.addView(LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL
+                background = roundedBg(0x0DFFFFFF, 12); setPadding(dp(14), dp(12), dp(8), dp(12))
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) }
+                addView(TextView(this@MainActivity).apply {
+                    text = name; setTextColor(0xFFEEF2F6.toInt()); textSize = 15f
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                })
+                addView(TextView(this@MainActivity).apply {
+                    text = "✕"; setTextColor(0xFF9AA7B4.toInt()); textSize = 16f; setPadding(dp(12), 0, dp(12), 0)
+                    setOnClickListener { f.delete(); sheet.dismiss(); showLoadDialog() }   // refresh
+                })
+                setOnClickListener {
+                    val path = f.absolutePath
+                    cityName = name; prefs.edit().putString("cityName", name).apply(); cityTitle.text = name
+                    sim.post {
+                        MicropolisNative.loadCity(handle, path)
+                        MicropolisNative.saveCity(handle, autosavePath)   // make restore-on-launch match
+                        ui.post { resetHistory(); commitSnapshot() }       // fresh undo history for the loaded city
+                    }
+                    showBanner("Loaded “$name”")
+                    sheet.dismiss()
+                }
+            })
+        }
+        val sv = ScrollView(this); sv.addView(col); sheet.setContentView(sv); sheet.show()
     }
 
     private fun showSettingsPanel() {
