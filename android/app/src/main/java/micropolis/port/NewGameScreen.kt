@@ -8,16 +8,18 @@ import android.widget.TextView
 
 // New game screen: bottom sheet with three tabs (New map, Scenarios, Cities).
 
-/** ⋁ → New game. `resume` restarts the sim when the sheet closes without starting a game. */
+/** ⋮ → New game. `resume` restarts the sim when the sheet closes without starting a game. */
 internal fun MainActivity.showNewGame(resume: () -> Unit) {
     val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(this)
+    var started = false          // a start action ran: do not resume on dismiss
 
     // Pre-build the pages
     val content = FrameLayout(this)
     val pages = ArrayList<View>()
 
-    // Tab 0: New map
-    val lastSelected = IntArray(4) { -1 }
+    // Tab 0: New map (scrolls: four option rows + the button are taller than the sheet)
+    val lastSelected = IntArray(4) { -1 }       // chosen card index per option
+    val optionValues = ArrayList<IntArray>()     // terrain value per card, per option
     pages.add(LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         val options = listOf(
@@ -32,6 +34,7 @@ internal fun MainActivity.showNewGame(resume: () -> Unit) {
         val islandGlyph = "🏝"
 
         options.forEachIndexed { idx, (label, choices, values) ->
+            optionValues.add(values)
             // Label
             addView(TextView(this@showNewGame).apply {
                 text = label
@@ -86,18 +89,14 @@ internal fun MainActivity.showNewGame(resume: () -> Unit) {
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             setCornerRadius(dp(12))
             setOnClickListener {
+                started = true
                 sheet.dismiss()
-                startNewMap(
-                    lastSelected[0],
-                    lastSelected[1],
-                    lastSelected[2],
-                    lastSelected[3],
-                    resume
-                )
+                val v = IntArray(4) { optionValues[it][lastSelected[it]] }
+                startNewMap(v[0], v[1], v[2], v[3], resume)
             }
         }
         addView(genBtn)
-    })
+    }.let { page -> ScrollView(this).apply { addView(page) } })
 
     // Tab 1: Scenarios
     pages.add(ScrollView(this).apply {
@@ -112,8 +111,9 @@ internal fun MainActivity.showNewGame(resume: () -> Unit) {
                 setPadding(dp(12), dp(12), dp(12), dp(12))
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                setPadding(0, 0, 0, dp(8))
+                    .apply { topMargin = dp(8) }
                 setOnClickListener {
+                    started = true
                     sheet.dismiss()
                     startScenario(sc, resume)
                 }
@@ -153,8 +153,9 @@ internal fun MainActivity.showNewGame(resume: () -> Unit) {
                 setPadding(dp(12), dp(12), dp(12), dp(12))
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                setPadding(0, 0, 0, dp(8))
+                    .apply { topMargin = dp(8) }
                 setOnClickListener {
+                    started = true
                     sheet.dismiss()
                     startSampleCity(name, resume)
                 }
@@ -228,11 +229,10 @@ internal fun MainActivity.showNewGame(resume: () -> Unit) {
     // Add tab row and content to col
     col.addView(tabRow)
     col.addView(content, LinearLayout.LayoutParams(
-        LinearLayout.LayoutParams.MATCH_PARENT, dp(400)))
+        LinearLayout.LayoutParams.MATCH_PARENT, (resources.displayMetrics.heightPixels * 0.6).toInt()))
 
     sheet.setContentView(col)
 
-    var started = false
     sheet.setOnDismissListener {
         if (!started) resume()
     }
@@ -240,5 +240,7 @@ internal fun MainActivity.showNewGame(resume: () -> Unit) {
     // Select first page initially
     content.addView(pages[0])
 
+    sheet.behavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
+    sheet.behavior.skipCollapsed = true
     sheet.show()
 }

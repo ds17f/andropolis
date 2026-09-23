@@ -47,6 +47,7 @@ internal fun MainActivity.startNewMap(trees: Int, lakes: Int, river: Int, island
     sim.post {
         MicropolisNative.setTerrain(handle, trees, lakes, river, island)
         MicropolisNative.generateRandomCity(handle)
+        MicropolisNative.setFunds(handle, 20_000)          // generating keeps the old city's money; Easy start
         MicropolisNative.saveCity(handle, autosavePath)   // reset autosave to the new city
         cityReady = true
         ui.post {
