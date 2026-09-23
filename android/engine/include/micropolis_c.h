@@ -277,6 +277,15 @@ int micropolis_poll_event(MicropolisEngine *e, MicropolisEvent *out);
  * fresh engine -> init -> load(S) -> set_rng(r) -> tick N times is then
  * bit-identical on every run (DESIGN.md 12.5; test/determinism.c).
  */
+/*
+ * Moving objects drawn over the map: train 1, helicopter 2, airplane 3, ship 4,
+ * monster 5, tornado 6, explosion 7, bus 8. Writes up to `max` active sprites as
+ * 4 ints each: {type, frame (1-based), left, top}, where left/top are world pixels
+ * (16 per tile) of the image's top-left corner. Image = sprite_<type>_<frame-1>.png.
+ * Returns the number written.
+ */
+int micropolis_copy_sprites(const MicropolisEngine *e, int *out, int max);
+
 long long micropolis_get_rng(const MicropolisEngine *e);
 void      micropolis_set_rng(MicropolisEngine *e, long long state);
 

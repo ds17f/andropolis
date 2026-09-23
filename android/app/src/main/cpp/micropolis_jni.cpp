@@ -172,6 +172,15 @@ Java_micropolis_port_MicropolisNative_setFunds(JNIEnv *, jobject, jlong h, jint 
     micropolis_set_funds(eng(h), funds);
 }
 
+JNIEXPORT jint JNICALL
+Java_micropolis_port_MicropolisNative_copySprites(JNIEnv *env, jobject, jlong h, jintArray dst) {
+    jsize len = env->GetArrayLength(dst);
+    jint *buf = env->GetIntArrayElements(dst, nullptr);
+    int n = micropolis_copy_sprites(eng(h), reinterpret_cast<int *>(buf), len / 4);
+    env->ReleaseIntArrayElements(dst, buf, 0);
+    return n;
+}
+
 JNIEXPORT jlong JNICALL
 Java_micropolis_port_MicropolisNative_getRng(JNIEnv *, jobject, jlong h) {
     return (jlong) micropolis_get_rng(eng(h));

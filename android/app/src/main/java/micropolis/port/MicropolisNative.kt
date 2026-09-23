@@ -73,6 +73,14 @@ object MicropolisNative {
     /** Set the city treasury. Used by undo to refund / re-charge a build. */
     external fun setFunds(handle: Long, funds: Int)
 
+    /**
+     * Active moving objects (train, helicopter, plane, ship, monster, tornado, explosion,
+     * bus), 4 ints each in dst: [type 1..8, frame 1.., left, top]; left/top are world
+     * pixels (16 per tile) of the image's top-left. Image asset:
+     * "sprites/sprite_<type>_<frame-1>.png". Returns the count (<= dst.size / 4).
+     */
+    external fun copySprites(handle: Long, dst: IntArray): Int
+
     /** The engine's PRNG state (saved with a background-play anchor; see DESIGN.md 12.5). */
     external fun getRng(handle: Long): Long
 

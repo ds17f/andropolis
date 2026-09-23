@@ -354,6 +354,20 @@ int micropolis_load_city_seeded(MicropolisEngine *e, const char *path, long long
     return (e && path && micropolisSeededLoad(e->sim, std::string(path), (UQuad) rng)) ? 1 : 0;
 }
 
+int micropolis_copy_sprites(const MicropolisEngine *e, int *out, int max) {
+    if (!e || !out || max <= 0) return 0;
+    int n = 0;
+    for (SimSprite *s = e->sim->spriteList; s && n < max; s = s->next) {
+        if (s->frame == 0) continue;               // inactive
+        out[n * 4 + 0] = s->type;
+        out[n * 4 + 1] = s->frame;
+        out[n * 4 + 2] = s->x + s->xOffset;
+        out[n * 4 + 3] = s->y + s->yOffset;
+        n++;
+    }
+    return n;
+}
+
 long long micropolis_get_rng(const MicropolisEngine *e) {
     return e ? (long long) e->sim->nextRandom : 0;
 }
