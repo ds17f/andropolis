@@ -41,6 +41,18 @@ For the full method, read `DESIGN.md`.
    script adds `tasks/_rules.md`, runs `pi -p --mode json`, and makes a session id
    from the spec name. A later round then resumes the same context.
 
+   **Keep the context files small.** The script pastes each context file into the
+   prompt in full. A large file fills the context window before qwen starts. When
+   the window is full, Ollama drops the oldest text first: that is the rules and
+   the spec. qwen then works without the spec. It invents code, edits files that
+   are out of scope, or rewrites the spec (tasks 050–053 did all three).
+   - Do not attach a file that is larger than 24 KB. `dispatch.sh` refuses it
+     (set `DISPATCH_ALLOW_BIG=1` to override).
+   - In the spec, give the file, the function names, and the line ranges. qwen
+     then reads only those parts.
+   - Keep source files small (about 300 lines or less). `MainActivity` is split
+     into extension files for this reason.
+
    **Isolated runs:** add `--isolate` for large/risky tasks, or whenever you run
    several dispatches in parallel:
    ```bash
@@ -92,7 +104,8 @@ Commit your own work first. qwen is constrained to stage only its in-scope files
 
 ## Model selection
 
-The default is `qwen3-coder-next:latest`. It has a 262K context and thinking. It
-is best when you feed engine files and the spec together. To change the model for
-one run, use `QWEN_MODEL=qwen3.8:27b-mlx`. Do an early **bake-off** on one real
+The default is `qwen3-coder-next-32k:latest`: `qwen3-coder-next` with its context
+set to 32K (see `dispatch.sh`). A full context window is the most frequent cause
+of bad runs, so keep the prompt small (see step 3). To change the model for one
+run, use `QWEN_MODEL=qwen3.8:27b-mlx`. Do an early **bake-off** on one real
 spec with both models. Let the diffs decide. Read `DESIGN.md` section 6.

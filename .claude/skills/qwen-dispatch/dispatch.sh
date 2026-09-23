@@ -43,6 +43,20 @@ fi
 shift || true
 CONTEXT=("$@")   # extra files for qwen to read
 
+# Context-size guard: context files are pasted into the prompt in full. A big one
+# fills the window, and Ollama then drops the oldest text — the rules and the spec.
+# Point the spec at functions / line ranges instead (see SKILL.md step 3).
+if [[ "${DISPATCH_ALLOW_BIG:-0}" != "1" ]]; then
+  for f in "${CONTEXT[@]}"; do
+    sz=$(wc -c < "$f")
+    if (( sz > 24000 )); then
+      echo "error: context file too big for the model's window: $f ($sz bytes > 24000)." >&2
+      echo "       Name the functions / line ranges in the spec instead, or set DISPATCH_ALLOW_BIG=1." >&2
+      exit 4
+    fi
+  done
+fi
+
 TASK="$(basename "$SPEC" .md)"
 SID="port-$TASK"
 
