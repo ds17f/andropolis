@@ -71,15 +71,15 @@ pause); "run in background" is a setting too.
       (engine side done: seeded scenario loader, terrain setter, assets)
 
 ## 8. Left before "done" (2026-09-23)
-- [ ] Icon: user picks A (tower from tiles, current) or B (micropolisj icon).
-- [ ] Zoom in on the event (auto-goto and notification tap) — sprites are tiny zoomed out.
+- [x] Icon: A, the tower from the game tiles.
+- [x] 064 Zoom in on events; start zoomed to fill the screen; minimap mode default, Move pans there.
 - [ ] Phone soak test of background play; add the WorkManager safety net only if alarms
       are missed or late there.
 - [ ] Live tick loop uses the seeded DisasterRoll too (consistency with background).
 - [ ] Scenario state is not in .cty (upstream format): saving/reloading a scenario turns it
       into free play. Store the scenario id + score wait in our own sidecar if wanted.
-- [ ] Release build: applicationId, signing key, versionCode/Name, R8; decide on
-      distribution (sideload APK vs Play Store — the latter needs the trademark terms
-      checked for store listings: the name license forbids marketing use without consent).
+- [x] Release pipeline: io.github.ds17f.micropolis, R8, CI (green), tagged releases, Play upload,
+      F-Droid metadata, RELEASING.md. Open: name permission from Micropolis GmbH, upload
+      key + secrets, Play Console setup, first tag (untested release workflow), F-Droid MR.
 - [ ] Polish: sheets/cards/dialogs to Material components (top + bottom done); Budget tab
       height; landscape / tablet layout.
