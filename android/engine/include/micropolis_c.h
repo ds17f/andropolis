@@ -65,6 +65,15 @@ unsigned short micropolis_get_tile(const MicropolisEngine *e, int x, int y);
 int micropolis_copy_tiles(const MicropolisEngine *e,
                           unsigned short *dst, int dst_len);
 
+/* ---- Map write (for undo) ----
+ * Overwrite one tile's full 16-bit value (tile index + flag bits), then mark the
+ * engine's maps dirty so derived data (power grid, overlays) is recomputed on the
+ * next scans. Out-of-bounds coordinates are ignored.
+ */
+void micropolis_set_tile(MicropolisEngine *e, int x, int y, unsigned short value);
+/* Set the city's funds directly (used to refund an undone build). */
+void micropolis_set_funds(MicropolisEngine *e, int funds);
+
 /* ---- Stats (for the HUD) ---- */
 typedef struct MicropolisStats {
     int city_time;     /* cityTime   */
