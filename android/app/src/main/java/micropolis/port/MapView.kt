@@ -26,7 +26,8 @@ class MapView(context: Context) : View(context) {
     private val dstRect = RectF()
 
     var onTileTap: ((Int, Int) -> Unit)? = null
-
+    var onStrokeEnd: ((built: Boolean) -> Unit)? = null
+    
     private var scale = 1f
     private var panX = 0f
     private var panY = 0f
@@ -35,6 +36,7 @@ class MapView(context: Context) : View(context) {
     private var lastFocusX = 0f
     private var lastFocusY = 0f
     private var lastBuiltTile: Pair<Int, Int>? = null
+    private var built = false
     
     private val scaleDetector = ScaleGestureDetector(context, ScaleListener())
 
@@ -54,10 +56,12 @@ class MapView(context: Context) : View(context) {
         scaleDetector.onTouchEvent(event)
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                built = false
                 lastBuiltTile = null
                 buildAt(event.x, event.y)
             }
             MotionEvent.ACTION_POINTER_DOWN -> {
+                built = false
                 panning = true
                 lastBuiltTile = null
                 lastFocusX = focusX(event)
@@ -80,6 +84,7 @@ class MapView(context: Context) : View(context) {
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 panning = false
                 lastBuiltTile = null
+                onStrokeEnd?.invoke(built)
                 performClick()
             }
         }
@@ -104,6 +109,7 @@ class MapView(context: Context) : View(context) {
         if (lastBuiltTile?.let { it.first == tileX && it.second == tileY } != true) {
             lastBuiltTile = Pair(tileX, tileY)
             onTileTap?.invoke(tileX, tileY)
+            built = true
         }
     }
 

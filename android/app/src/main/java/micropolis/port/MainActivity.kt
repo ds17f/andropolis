@@ -36,8 +36,11 @@ class MainActivity : AppCompatActivity() {
     private val taxRates = intArrayOf(0, 5, 7, 9, 12, 15, 20)
     private var taxIdx = 2   // start at 7%
     private val savePath by lazy { java.io.File(filesDir, "city.cty").absolutePath }
-    private var trialActive = false
-    private val trialPath by lazy { java.io.File(filesDir, "trial.cty").absolutePath }
+    private val snapDir by lazy { java.io.File(filesDir, "undo").apply { mkdirs() } }
+    private val history = mutableListOf<String>()   // snapshot file paths, oldest..newest
+    private var cursor = -1                          // index of the current live state
+    private var snapSeq = 0
+    private val undoCap = 24
     private lateinit var topBar: LinearLayout
     private lateinit var cityTitle: android.widget.TextView
     private lateinit var subtitle: android.widget.TextView
@@ -54,8 +57,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pillName: TextView
     private lateinit var bottom: LinearLayout
     private lateinit var toolPill: LinearLayout
-    private lateinit var trialPill: LinearLayout
-    private lateinit var trialState: TextView
+    private lateinit var undoBtn: Button
+    private lateinit var redoBtn: Button
     private val toolCategories = linkedMapOf(
         "Zones" to listOf(ToolItem("Residential", 0, R.drawable.ic_residential), ToolItem("Commercial", 1, R.drawable.ic_commercial), ToolItem("Industrial", 2, R.drawable.ic_industrial), ToolItem("Park", 11, R.drawable.ic_park)),
         "Transport" to listOf(ToolItem("Road", 9, R.drawable.ic_road), ToolItem("Rail", 8, R.drawable.ic_rail), ToolItem("Wire", 6, R.drawable.ic_wire), ToolItem("Bulldozer", 7, R.drawable.ic_bulldozer)),
@@ -371,61 +374,51 @@ class MainActivity : AppCompatActivity() {
 
         bottom.addView(toolPill)
 
-        // Trial pill (opens trial panel)
-        trialPill = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
+        // Undo / Redo buttons
+        undoBtn = Button(this).apply {
+            text = "↶"
             background = roundedBg(0xFF1A222A.toInt(), 18)
-            setPadding(dp(16), dp(8), dp(16), dp(8))
-            setOnClickListener { showTrialPanel() }
-            layoutParams = LayoutParams(0, LayoutParams.WRAP_CONTENT).apply { weight = 1f }
-        }
-
-        val trialInfo = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            setPadding(dp(12), 0, dp(12), 0)
-        }
-
-        val trialLabel = TextView(this).apply {
-            text = "⚑"
             setTextColor(0xFFEEF2F6.toInt())
-            setTextSize(14f)
-            setTypeface(null, android.graphics.Typeface.BOLD)
+            stateListAnimator = null
+            setTextSize(18f)
+            setPadding(dp(14), dp(8), dp(14), dp(8))
+            setOnClickListener { undo() }
         }
-        trialInfo.addView(trialLabel)
+        bottom.addView(undoBtn, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { setMargins(dp(8), 0, 0, 0) })
 
-        trialState = TextView(this).apply {
-            text = "Trial: off"
-            setTextColor(0xFF9AA7B4.toInt())
-            setTextSize(11f)
+        redoBtn = Button(this).apply {
+            text = "↷"
+            background = roundedBg(0xFF1A222A.toInt(), 18)
+            setTextColor(0xFFEEF2F6.toInt())
+            stateListAnimator = null
+            setTextSize(18f)
+            setPadding(dp(14), dp(8), dp(14), dp(8))
+            setOnClickListener { redo() }
         }
-        trialInfo.addView(trialState)
-
-        trialPill.addView(trialInfo)
-
-        bottom.addView(trialPill)
+        bottom.addView(redoBtn, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { setMargins(dp(8), 0, 0, 0) })
 
         root.addView(bottom)
 
         setContentView(root)
 
         updatePill()
-        updateTrialPill()
+        updateUndoButtons()
 
         // Set up tap listener
         mapView.onTileTap = { tileX, tileY ->
             val tool = currentTool
             sim.post { MicropolisNative.doTool(handle, tool, tileX, tileY) }
         }
+        // One snapshot per build stroke drives Undo/Redo.
+        mapView.onStrokeEnd = { built -> if (built) commitSnapshot() }
 
         // Setup on sim thread
         sim.post {
             handle = MicropolisNative.create()
             MicropolisNative.init(handle)
             MicropolisNative.generateRandomCity(handle)
+            // Seed the undo history with the starting city (touch history on main thread).
+            ui.post { commitSnapshot() }
         }
 
         // Start tick loop on sim thread
@@ -438,68 +431,33 @@ class MainActivity : AppCompatActivity() {
         pillName.text = ti.label
     }
 
-    private fun showTrialPanel() {
-        val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(this)
-        val col = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(16), dp(20), dp(28))
-            setBackgroundColor(0xFF12161C.toInt())
-        }
-        col.addView(TextView(this).apply {
-            text = "Build session"
-            setTextColor(0xFFEEF2F6.toInt())
-            textSize = 18f
-            setTypeface(null, android.graphics.Typeface.BOLD)
-            setPadding(0, 0, 0, dp(8))
-        })
-        fun panelButton(label: String, amber: Boolean, onClick: () -> Unit): Button =
-            Button(this).apply {
-                text = label
-                background = roundedBg(if (amber) 0xFFF5A623.toInt() else 0x1FFFFFFF.toInt(), 12)
-                setTextColor(if (amber) 0xFF1A1207.toInt() else 0xFFEEF2F6.toInt())
-                stateListAnimator = null
-                layoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { topMargin = dp(10) }
-                setOnClickListener { onClick(); sheet.dismiss() }
-            }
-        if (!trialActive) {
-            col.addView(TextView(this).apply {
-                text = "Snapshot the city, build freely, then keep or revert."
-                setTextColor(0xFF9AA7B4.toInt())
-                textSize = 13f
-                setPadding(0, 0, 0, dp(4))
-            })
-            col.addView(panelButton("Start trial", true) {
-                trialActive = true
-                sim.post { MicropolisNative.saveCity(handle, trialPath) }
-                updateTrialPill()
-            })
-        } else {
-            col.addView(panelButton("Keep changes", true) {
-                trialActive = false
-                java.io.File(trialPath).delete()
-                updateTrialPill()
-            })
-            col.addView(panelButton("Revert changes", false) {
-                sim.post { MicropolisNative.loadCity(handle, trialPath) }
-                trialActive = false
-                updateTrialPill()
-            })
-        }
-        val sv = ScrollView(this)
-        sv.addView(col)
-        sheet.setContentView(sv)
-        sheet.show()
+    private fun newSnapPath(): String { snapSeq++; return java.io.File(snapDir, "s$snapSeq.cty").absolutePath }
+
+    /** Snapshot the current (post-build) state as the new head, dropping any redo branch. */
+    private fun commitSnapshot() {
+        // drop the redo branch (everything after the cursor)
+        while (history.size > cursor + 1) { java.io.File(history.removeAt(history.size - 1)).delete() }
+        val path = newSnapPath()
+        sim.post { MicropolisNative.saveCity(handle, path) }
+        history.add(path); cursor = history.size - 1
+        // trim the oldest snapshot if over the cap
+        while (history.size > undoCap) { java.io.File(history.removeAt(0)).delete(); cursor-- }
+        updateUndoButtons()
     }
 
-    private fun updateTrialPill() {
-        if (trialActive) {
-            trialState.text = "Trial: on"
-        } else {
-            trialState.text = "Trial: off"
-        }
+    private fun undo() {
+        if (cursor > 0) { cursor--; sim.post { MicropolisNative.loadCity(handle, history[cursor]) }; updateUndoButtons() }
+    }
+
+    private fun redo() {
+        if (cursor < history.size - 1) { cursor++; sim.post { MicropolisNative.loadCity(handle, history[cursor]) }; updateUndoButtons() }
+    }
+
+    private fun updateUndoButtons() {
+        val canUndo = cursor > 0
+        val canRedo = cursor < history.size - 1
+        undoBtn.isEnabled = canUndo; undoBtn.alpha = if (canUndo) 1f else 0.35f
+        redoBtn.isEnabled = canRedo; redoBtn.alpha = if (canRedo) 1f else 0.35f
     }
 
     private fun openPalette() {
