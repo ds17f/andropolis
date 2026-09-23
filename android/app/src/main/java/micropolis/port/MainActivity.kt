@@ -63,8 +63,9 @@ class MainActivity : AppCompatActivity() {
     private val navZoom = 5f                 // fixed zoom when minimap navigation is on
     private val eventBuf = IntArray(9)
     private lateinit var messageBanner: TextView
-    private val bannerHide = Runnable { messageBanner.visibility = View.GONE }
+    private val bannerHide = Runnable { messageBanner.visibility = View.GONE; viewBeforeJump = null }
     private var lastEventTile: Pair<Int, Int>? = null
+    private var viewBeforeJump: FloatArray? = null
     private class LogEntry(val date: String, val text: String, val x: Int, val y: Int)
     private val messageLog = ArrayDeque<LogEntry>()
     private fun logMessage(text: String, x: Int, y: Int) {
@@ -807,7 +808,15 @@ class MainActivity : AppCompatActivity() {
             setTextColor(0xFFEEF2F6.toInt()); textSize = 13f
             background = roundedBg(0xE6202A36.toInt(), 12)
             setPadding(dp(14), dp(10), dp(14), dp(10))
-            setOnClickListener { lastEventTile?.let { mapView.centerOnTile(it.first, it.second) } }
+            setOnClickListener {
+                if (viewBeforeJump != null) {
+                    mapView.restoreView(viewBeforeJump!!)
+                    viewBeforeJump = null
+                    messageBanner.visibility = View.GONE
+                } else {
+                    lastEventTile?.let { mapView.centerOnTile(it.first, it.second) }
+                }
+            }
         }
         mapContainer.addView(messageBanner, android.widget.FrameLayout.LayoutParams(
             android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
@@ -938,8 +947,12 @@ class MainActivity : AppCompatActivity() {
         // One snapshot per build stroke drives Undo/Redo.
         mapView.onStrokeEnd = { built -> if (built) commitSnapshot() }
         // Wire minimap
-        minimap.onTileSelected = { tx, ty -> mapView.centerOnTile(tx, ty) }
+        minimap.onTileSelected = { tx, ty ->
+            mapView.centerOnTile(tx, ty)
+            viewBeforeJump = null
+        }
         mapView.onViewportChanged = { l, t, r, b -> minimap.setViewport(l, t, r, b) }
+        mapView.onUserNavigate = { viewBeforeJump = null }
         minimapNav = prefs.getBoolean("minimapNav", false)
         autoGoto = prefs.getBoolean("autoGoto", true)
         applyMinimapMode()
@@ -989,6 +1002,12 @@ class MainActivity : AppCompatActivity() {
         messageBanner.visibility = View.VISIBLE
         ui.removeCallbacks(bannerHide)
         ui.postDelayed(bannerHide, 6000)
+    }
+
+    private fun autoJumpTo(x: Int, y: Int) {
+        if (viewBeforeJump == null) viewBeforeJump = mapView.saveView()
+        mapView.centerOnTile(x, y)
+        messageBanner.text = messageBanner.text.toString() + "   ↩ Back"
     }
 
     // The engine's zone-status values are 1-based indices into these tables (engine data
@@ -1249,11 +1268,11 @@ class MainActivity : AppCompatActivity() {
                         logMessage(line, ex, ey)
                         if (ex >= 0 && ey >= 0) {
                             lastEventTile = Pair(ex, ey)
-                            if (autoGoto) mapView.centerOnTile(ex, ey)  // Settings → Auto go to events
+                            if (autoGoto) autoJumpTo(ex, ey)  // Settings → Auto go to events
                         }
                     }
                     1 -> showZoneStatusDialog(ex, ey, a, b, c, d, e2, f) // Query result
-                    2 -> { lastEventTile = Pair(ex, ey); if (autoGoto) mapView.centerOnTile(ex, ey) } // AUTO_GOTO
+                    2 -> { lastEventTile = Pair(ex, ey); if (autoGoto) autoJumpTo(ex, ey) } // AUTO_GOTO
                     3 -> showBanner("⛰  Earthquake! (strength $a)")
                     4 -> showBanner("💀  Your city has fallen.")
                     5 -> showBanner("🏆  You won!")

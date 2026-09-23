@@ -28,6 +28,7 @@ class MapView(context: Context) : View(context) {
     var onTileTap: ((Int, Int) -> Unit)? = null
     var onStrokeEnd: ((built: Boolean) -> Unit)? = null
     var onViewportChanged: ((Float, Float, Float, Float) -> Unit)? = null
+    var onUserNavigate: (() -> Unit)? = null
     
     var toolFootprint: Int = 1            // set by MainActivity; >1 == place-on-lift
     private var ghostX = -1               // tile coords of the ghost anchor; -1 == no ghost
@@ -71,6 +72,16 @@ class MapView(context: Context) : View(context) {
     fun centerOnTile(tx: Int, ty: Int) {
         panX = width / 2f - (tx + 0.5f) * tileSize * scale
         panY = height / 2f - (ty + 0.5f) * tileSize * scale
+        clampPan(); invalidate()
+    }
+
+    /** Current view as [panX, panY, scale]. */
+    fun saveView(): FloatArray = floatArrayOf(panX, panY, scale)
+
+    /** Restore a view captured by saveView(). */
+    fun restoreView(v: FloatArray) {
+        if (v.size < 3) return
+        panX = v[0]; panY = v[1]; scale = v[2]
         clampPan(); invalidate()
     }
 
@@ -142,6 +153,7 @@ class MapView(context: Context) : View(context) {
                 invalidate()
                 lastFocusX = focusX(event)
                 lastFocusY = focusY(event)
+                if (!navLocked) onUserNavigate?.invoke()
             }
             MotionEvent.ACTION_MOVE -> {
                 if (event.pointerCount >= 2 && !navLocked) {
