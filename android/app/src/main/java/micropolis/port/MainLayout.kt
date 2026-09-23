@@ -27,204 +27,56 @@ internal fun MainActivity.buildLayout() {
     root.orientation = LinearLayout.VERTICAL
     root.fitsSystemWindows = true
 
-    // ===== Top app bar =====
+    // ===== Top app bar (Material toolbar + flat stats strip) =====
     topBar = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         setBackgroundColor(0xFF12161C.toInt())
-        setPadding(16, 40, 16, 12)
-        elevation = dp(6).toFloat()
+        elevation = dp(4).toFloat()
     }
-
-            // Row 1: city title, play/pause, overflow
-    val row1 = LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL
-        setPadding(0, 0, 0, 8)
-    }
-
-    // Left vertical block (city title and subtitle)
-    val cityBlock = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        layoutParams = LinearLayout.LayoutParams(
-            0,
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            1f
-        )
-    }
-
-    cityTitle = android.widget.TextView(this).apply {
-        text = "Micropolis"
-        setTextSize(19f)
-        setTypeface(null, android.graphics.Typeface.BOLD)
-        setTextColor(0xFFEEF2F6.toInt())
-        setPadding(0, 0, 16, 0)
-    }
-    cityBlock.addView(cityTitle)
-
-    subtitle = android.widget.TextView(this).apply {
-        setTextSize(13f)
-        setTextColor(0xFF9AA7B4.toInt())
-    }
-    cityBlock.addView(subtitle)
-    row1.addView(cityBlock)
-
-    // Play/Pause button
-    playPauseBtn = Button(this).apply {
-        setText("⏸")
-        background = roundedBg(0xFFF5A623.toInt(), 12)
-        setTextColor(0xFF1A1207.toInt())
-        setOnClickListener {
-            if (speed == 0) {
-                speed = lastRunSpeed
-            } else {
-                lastRunSpeed = speed
-                speed = 0
-            }
-            updatePlayPauseText()
-            updateSpeedChipText()
-        }
-        setPadding(dp(14), dp(8), dp(14), dp(8))
-        stateListAnimator = null
-        setTextSize(14f)
-    }
-    row1.addView(playPauseBtn, LayoutParams(dp(48), LayoutParams.WRAP_CONTENT).apply { setMargins(8, 0, 0, 0) })
-
-    // Overflow button
-    overflowBtn = Button(this).apply {
-        setText("⋮")
-        background = roundedBg(0x1FFFFFFF.toInt(), 12)
-        setTextColor(0xFFEEF2F6.toInt())
-        setOnClickListener {
-            val resume = pauseForUi()
-            val pm = PopupMenu(this@buildLayout, it as Button)
-            pm.menu.add("Redo").isEnabled = redoStack.isNotEmpty()
-            pm.menu.add("New city")
-            pm.menu.add("Save city")
-            pm.menu.add("Load city")
-            pm.menu.add(if (annualReportEnabled) "Annual report: On" else "Annual report: Off")
-            pm.menu.add("Messages")
-            pm.menu.add("Settings")
-            var handedOff = false
-            pm.setOnMenuItemClickListener { item ->
-                when (item.title) {
-                    "Redo" -> redo()
-                    "Messages" -> { handedOff = true; showMessagesPanel(resume) }
-                    "Settings" -> { handedOff = true; showSettingsPanel(resume) }
-                    "New city" -> {
-                        cityReady = false
-                        sim.post {
-                            MicropolisNative.generateRandomCity(handle)
-                            MicropolisNative.saveCity(handle, autosavePath)   // reset autosave to the new city
-                            cityReady = true
-                            ui.post {
-                                resetHistory()                 // undo does not cross cities
-                                promptCityName(isFirst = true, onDismiss = resume)
-                            }
-                        }
-                        handedOff = true
-                    }
-                    "Save city" -> { handedOff = true; pickerResume = resume; savePicker.launch("${sanitize(cityName)}.cty") }
-                    "Load city" -> { handedOff = true; pickerResume = resume; loadPicker.launch(arrayOf("*/*")) }
-                    else -> if (item.title.toString().startsWith("Annual report")) {
-                        annualReportEnabled = !annualReportEnabled
-                        prefs.edit().putBoolean("annualReport", annualReportEnabled).apply()
-                    }
+    toolbar = com.google.android.material.appbar.MaterialToolbar(this).apply {
+        title = "Micropolis"
+        setSubtitleTextAppearance(context, com.google.android.material.R.style.TextAppearance_Material3_BodyMedium)
+        setTitleTextColor(0xFFEEF2F6.toInt()); setSubtitleTextColor(0xFF9AA7B4.toInt())
+        menu.add(0, R.id.action_play_pause, 0, "Pause").setIcon(R.drawable.ic_pause)
+            .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_ALWAYS)
+        menu.add(0, R.id.action_more, 1, "More").setIcon(R.drawable.ic_more_vert)
+            .setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_ALWAYS)
+        setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.action_play_pause -> {
+                    if (speed == 0) speed = lastRunSpeed else { lastRunSpeed = speed; speed = 0 }
+                    updatePlayPauseText(); updateSpeedChipText()
                 }
-                true
+                // our own popup (not the toolbar overflow) so opening it can pause the sim
+                R.id.action_more -> showOverflowMenu(findViewById(R.id.action_more) ?: this)
             }
-            pm.setOnDismissListener { if (!handedOff) resume() }
-            pm.show()
+            true
         }
-        setPadding(dp(14), dp(8), dp(14), dp(8))
-        stateListAnimator = null
-        setTextSize(14f)
     }
-    row1.addView(overflowBtn, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { setMargins(8, 0, 0, 0) })
-    topBar.addView(row1)
+    topBar.addView(toolbar)
 
-    // Row 2: HUD chips (Funds, Population, Score)
-    val row2 = LinearLayout(this).apply {
+    // Stats strip: plain labelled numbers, not buttons.
+    val stats = LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL
+        setPadding(dp(16), 0, dp(16), dp(10))
     }
-
-    // Funds chip
-    fundsChip = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        background = roundedBg(0x14FFFFFF.toInt(), 12)
-        layoutParams = LinearLayout.LayoutParams(
-            0,
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            1f
-        ).apply { setMargins(8, 0, 0, 0) }
-        setPadding(dp(12), dp(8), dp(12), dp(8))
+    fun stat(label: String, valueColor: Int): TextView {
+        val v = TextView(this).apply {
+            textSize = 16f; setTextColor(valueColor); setTypeface(null, android.graphics.Typeface.BOLD)
+        }
+        stats.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            addView(TextView(this@buildLayout).apply {
+                text = label.uppercase(); textSize = 10f; letterSpacing = 0.08f; setTextColor(0xFF7D8B99.toInt()) })
+            addView(v)
+        })
+        return v
     }
-    val fundsLabel = android.widget.TextView(this).apply {
-        setText("Funds")
-        setTextSize(10f)
-        setTextColor(0xFF9AA7B4.toInt())
-    }
-    fundsChip.addView(fundsLabel)
-    fundsValue = android.widget.TextView(this).apply {
-        setText("$0")
-        setTextSize(15f)
-        setTypeface(null, android.graphics.Typeface.BOLD)
-        setTextColor(0xFFF5A623.toInt())
-    }
-    fundsChip.addView(fundsValue)
-    row2.addView(fundsChip)
-
-    // Population chip
-    popChip = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        background = roundedBg(0x14FFFFFF.toInt(), 12)
-        layoutParams = LinearLayout.LayoutParams(
-            0,
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            1f
-        ).apply { setMargins(8, 0, 0, 0) }
-        setPadding(dp(12), dp(8), dp(12), dp(8))
-    }
-    val popLabel = android.widget.TextView(this).apply {
-        setText("Population")
-        setTextSize(10f)
-        setTextColor(0xFF9AA7B4.toInt())
-    }
-    popChip.addView(popLabel)
-    popValue = android.widget.TextView(this).apply {
-        setText("0")
-        setTextSize(15f)
-        setTypeface(null, android.graphics.Typeface.BOLD)
-        setTextColor(0xFFEEF2F6.toInt())
-    }
-    popChip.addView(popValue)
-    row2.addView(popChip)
-
-    // Score chip
-    scoreChip = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        background = roundedBg(0x14FFFFFF.toInt(), 12)
-        layoutParams = LinearLayout.LayoutParams(
-            0,
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            1f
-        ).apply { setMargins(8, 0, 0, 0) }
-        setPadding(dp(12), dp(8), dp(12), dp(8))
-    }
-    val scoreLabel = android.widget.TextView(this).apply {
-        setText("Score")
-        setTextSize(10f)
-        setTextColor(0xFF9AA7B4.toInt())
-    }
-    scoreChip.addView(scoreLabel)
-    scoreValue = android.widget.TextView(this).apply {
-        setText("0")
-        setTextSize(15f)
-        setTypeface(null, android.graphics.Typeface.BOLD)
-        setTextColor(0xFFEEF2F6.toInt())
-    }
-    scoreChip.addView(scoreValue)
-    row2.addView(scoreChip)
-
-    topBar.addView(row2)
+    fundsValue = stat("Funds", 0xFFF5A623.toInt())
+    popValue = stat("Population", 0xFFEEF2F6.toInt())
+    scoreValue = stat("Score", 0xFFEEF2F6.toInt())
+    topBar.addView(stats)
     root.addView(topBar, 0, LinearLayout.LayoutParams(
         LinearLayout.LayoutParams.MATCH_PARENT,
         LinearLayout.LayoutParams.WRAP_CONTENT))

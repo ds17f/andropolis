@@ -30,7 +30,7 @@ internal fun MainActivity.publicAutosave() {
 }
 
 internal fun MainActivity.logMessage(text: String, x: Int, y: Int) {
-    messageLog.addFirst(LogEntry(subtitle.text.toString(), text, x, y))   // newest first
+    messageLog.addFirst(LogEntry(dateText, text, x, y))   // newest first
     while (messageLog.size > 50) messageLog.removeLast()
 }
 
@@ -93,9 +93,9 @@ internal fun MainActivity.tickLoop() {
     }
     
     ui.post {
-        subtitle.text = "$monthName $year"
-        fundsValue.text = "\$$funds"
-        popValue.text = "$pop"
+        dateText = "$monthName $year"; updateSubtitle()
+        fundsValue.text = "\$" + "%,d".format(funds)
+        popValue.text = "%,d".format(pop)
         scoreValue.text = "$score"
     }
     val yearRolled = lastReportYear != -1 && year > lastReportYear && annualReportEnabled

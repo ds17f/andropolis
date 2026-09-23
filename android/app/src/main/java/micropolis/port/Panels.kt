@@ -62,7 +62,7 @@ internal fun MainActivity.promptCityName(isFirst: Boolean, onDismiss: (() -> Uni
             val name = input.text.toString().trim().ifEmpty { "Micropolis" }
             cityName = name
             prefs.edit().putString("cityName", name).apply()
-            cityTitle.text = name
+            toolbar.title = name
         }
         .setCancelable(false)
         .create().also { dialog ->
@@ -134,11 +134,58 @@ internal fun MainActivity.openPalette() {
     sheet.show()
 }
 
+/** Toolbar play/pause icon (amber play while paused) and the "date · speed" subtitle. */
 internal fun MainActivity.updatePlayPauseText() {
-    playPauseBtn.text = if (speed == 0) "▶" else "⏸"
+    val item = toolbar.menu.findItem(R.id.action_play_pause)
+    item.setIcon(if (speed == 0) R.drawable.ic_play else R.drawable.ic_pause)
+    item.title = if (speed == 0) "Resume" else "Pause"
+    item.icon?.mutate()?.setTint(if (speed == 0) 0xFFF5A623.toInt() else 0xFFEEF2F6.toInt())
+    updateSubtitle()
 }
 
-internal fun MainActivity.updateSpeedChipText() { simState.text = speedNames[speed] }
+internal fun MainActivity.updateSpeedChipText() { simState.text = speedNames[speed]; updateSubtitle() }
+
+internal fun MainActivity.updateSubtitle() {
+    toolbar.subtitle = if (speed == 0) "$dateText · Paused" else "$dateText · ${speedNames[speed]}"
+}
+
+/** The ⋮ menu. Opening it pauses the sim; it resumes on dismiss unless a dialog takes over. */
+internal fun MainActivity.showOverflowMenu(anchor: View) {
+    val resume = pauseForUi()
+    val pm = PopupMenu(this@showOverflowMenu, anchor)
+    pm.menu.add("Redo").isEnabled = redoStack.isNotEmpty()
+    pm.menu.add("New city")
+    pm.menu.add("Save city")
+    pm.menu.add("Load city")
+    pm.menu.add("Messages")
+    pm.menu.add("Settings")
+    var handedOff = false
+    pm.setOnMenuItemClickListener { item ->
+        when (item.title) {
+            "Redo" -> redo()
+            "Messages" -> { handedOff = true; showMessagesPanel(resume) }
+            "Settings" -> { handedOff = true; showSettingsPanel(resume) }
+            "New city" -> {
+                cityReady = false
+                sim.post {
+                    MicropolisNative.generateRandomCity(handle)
+                    MicropolisNative.saveCity(handle, autosavePath)   // reset autosave to the new city
+                    cityReady = true
+                    ui.post {
+                        resetHistory()                 // undo does not cross cities
+                        promptCityName(isFirst = true, onDismiss = resume)
+                    }
+                }
+                handedOff = true
+            }
+            "Save city" -> { handedOff = true; pickerResume = resume; savePicker.launch("${sanitize(cityName)}.cty") }
+            "Load city" -> { handedOff = true; pickerResume = resume; loadPicker.launch(arrayOf("*/*")) }
+        }
+        true
+    }
+    pm.setOnDismissListener { if (!handedOff) resume() }
+    pm.show()
+}
 
 internal fun MainActivity.showSimulationPanel() {
     showPanel("Simulation", listOf(
@@ -229,6 +276,10 @@ internal fun MainActivity.showSettingsPanel(onDismiss: (() -> Unit)? = null) {
             addView(settingsToggle("Sound effects",
                 "City sounds and build feedback.", sfx.enabled) { c ->
                 sfx.enabled = c; prefs.edit().putBoolean("sound", c).apply()
+            })
+            addView(settingsToggle("Annual report",
+                "Pause at each new year and show the city's report card.", annualReportEnabled) { c ->
+                annualReportEnabled = c; prefs.edit().putBoolean("annualReport", c).apply()
             })
             addView(settingsToggle("Auto go to events",
                 "Jump the map to fires, disasters and other alerts as they happen.", autoGoto) { c ->

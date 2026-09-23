@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Toolbar actions (MainLayout.kt). -->
+    <item name="action_play_pause" type="id"/>
+    <item name="action_more" type="id"/>
+</resources>

@@ -56,7 +56,7 @@ class MainActivity : AppCompatActivity() {
     internal val loadPicker = registerForActivityResult(CitySaves.OpenCity()) { uri ->
         if (uri != null) {
             val name = CitySaves.cityNameFor(this, uri)
-            cityName = name; prefs.edit().putString("cityName", name).apply(); cityTitle.text = name
+            cityName = name; prefs.edit().putString("cityName", name).apply(); toolbar.title = name
             sim.post {
                 val tmp = CitySaves.tempFile(this)
                 CitySaves.copyFromUri(this, uri, tmp)
@@ -71,7 +71,7 @@ class MainActivity : AppCompatActivity() {
     internal val savePicker = registerForActivityResult(CitySaves.SaveCity()) { uri ->
         if (uri != null) {
             val name = CitySaves.cityNameFor(this, uri)
-            cityName = name; prefs.edit().putString("cityName", name).apply(); cityTitle.text = name
+            cityName = name; prefs.edit().putString("cityName", name).apply(); toolbar.title = name
             sim.post {
                 val tmp = CitySaves.tempFile(this)
                 MicropolisNative.saveCity(handle, tmp.absolutePath)
@@ -140,15 +140,10 @@ class MainActivity : AppCompatActivity() {
     internal val histVisible = BooleanArray(6) { true }   // graph line toggles (persist while app runs)
     internal val histNames = arrayOf("Residential", "Commercial", "Industrial", "Money", "Crime", "Pollution")
     internal lateinit var topBar: LinearLayout
-    internal lateinit var cityTitle: android.widget.TextView
-    internal lateinit var subtitle: android.widget.TextView
-    internal lateinit var playPauseBtn: Button
-    internal lateinit var overflowBtn: Button
-    internal lateinit var fundsChip: LinearLayout
+    internal lateinit var toolbar: com.google.android.material.appbar.MaterialToolbar
+    internal var dateText = ""                 // "Nov 2186", shown in the toolbar subtitle
     internal lateinit var fundsValue: android.widget.TextView
-    internal lateinit var popChip: LinearLayout
     internal lateinit var popValue: android.widget.TextView
-    internal lateinit var scoreChip: LinearLayout
     internal lateinit var scoreValue: android.widget.TextView
     internal lateinit var pillIcon: ImageView
     internal lateinit var pillName: TextView
@@ -258,7 +253,7 @@ class MainActivity : AppCompatActivity() {
                 cityReady = true
                 ui.post {
                     cityName = prefs.getString("cityName", "Micropolis") ?: "Micropolis"
-                    cityTitle.text = cityName
+                    toolbar.title = cityName
                 }
             } else {
                 MicropolisNative.generateRandomCity(handle)
