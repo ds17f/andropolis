@@ -37,7 +37,7 @@ internal fun MainActivity.resumeFromBackgroundPlay() {
             if (res.paused) {
                 if (speed != 0) { lastRunSpeed = speed; speed = 0 }
                 updatePlayPauseText(); updateSpeedChipText()
-                if (res.x >= 0) mapView.centerOnTile(res.x, res.y)
+                if (res.x >= 0) mapView.zoomToTile(res.x, res.y)
                 showBanner("⏸  ${res.title}")
             } else if (away > 0) {
                 val y = away / 12; val m = away % 12

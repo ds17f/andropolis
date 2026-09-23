@@ -213,6 +213,7 @@ class MainActivity : AppCompatActivity() {
 
         buf = ShortArray(MicropolisNative.mapWidth() * MicropolisNative.mapHeight())
         buildLayout()
+        mapView.zoomToFill()
 
         mapView.toolFootprint = footprintOf(currentTool)
         mapView.straightLineTool = isStraightLineTool(currentTool)

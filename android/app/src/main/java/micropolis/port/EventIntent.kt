@@ -10,7 +10,7 @@ internal fun MainActivity.handleEventIntent(i: Intent?) {
     if (x < 0 || y < 0) return
     i.removeExtra(Notifier.EXTRA_X)
     i.removeExtra(Notifier.EXTRA_Y)
-    ui.postDelayed({ mapView.centerOnTile(x, y) }, 800)
+    ui.postDelayed({ mapView.zoomToTile(x, y) }, 800)
 }
 
 /** Android 13+: ask for POST_NOTIFICATIONS if we do not have it yet. */

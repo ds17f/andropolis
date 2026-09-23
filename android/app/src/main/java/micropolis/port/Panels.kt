@@ -107,7 +107,7 @@ internal fun MainActivity.selectTool(tool: Int) {
 
 internal fun MainActivity.autoJumpTo(x: Int, y: Int) {
     if (viewBeforeJump == null) viewBeforeJump = mapView.saveView()
-    mapView.centerOnTile(x, y)
+    mapView.zoomToTile(x, y)
     messageBanner.text = messageBanner.text.toString() + "   ↩ Back"
 }
 
