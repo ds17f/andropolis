@@ -221,7 +221,11 @@ class MainActivity : AppCompatActivity() {
                                 MicropolisNative.generateRandomCity(handle)
                                 MicropolisNative.saveCity(handle, autosavePath)   // reset autosave to the new city
                                 cityReady = true
-                                ui.post { promptCityName(isFirst = true) }
+                                ui.post {
+                                    resetHistory()                 // drop the old city's undo snapshots
+                                    promptCityName(isFirst = true)
+                                    commitSnapshot()               // seed with the new city
+                                }
                             }
                         }
                         "Save city" -> sim.post { MicropolisNative.saveCity(handle, savePath) }
@@ -456,12 +460,18 @@ class MainActivity : AppCompatActivity() {
             if (hasSave) {
                 MicropolisNative.loadCity(handle, autosavePath)
                 cityReady = true
-                ui.post { cityName = prefs.getString("cityName", "Micropolis") ?: "Micropolis"
-                          cityTitle.text = cityName }
+                ui.post {
+                    cityName = prefs.getString("cityName", "Micropolis") ?: "Micropolis"
+                    cityTitle.text = cityName
+                    commitSnapshot()   // seed the undo history with the restored city
+                }
             } else {
                 MicropolisNative.generateRandomCity(handle)
                 cityReady = true
-                ui.post { promptCityName(isFirst = true) }   // name a brand-new city
+                ui.post {
+                    promptCityName(isFirst = true)   // name a brand-new city
+                    commitSnapshot()                 // seed the undo history with the starting city
+                }
             }
         }
 
@@ -503,6 +513,13 @@ class MainActivity : AppCompatActivity() {
         val canRedo = cursor < history.size - 1
         undoBtn.isEnabled = canUndo; undoBtn.alpha = if (canUndo) 1f else 0.35f
         redoBtn.isEnabled = canRedo; redoBtn.alpha = if (canRedo) 1f else 0.35f
+    }
+
+    /** Drop all undo snapshots (used when starting a fresh city). */
+    private fun resetHistory() {
+        for (p in history) java.io.File(p).delete()
+        history.clear(); cursor = -1
+        updateUndoButtons()
     }
 
     private fun openPalette() {
