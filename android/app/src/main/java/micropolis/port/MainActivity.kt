@@ -954,8 +954,9 @@ class MainActivity : AppCompatActivity() {
         lastReportYear = year
         if (yearRolled) {
             ui.post {
-                if (speed != 0) { lastRunSpeed = speed; speed = 0; updatePlayPauseText(); updateSpeedChipText() }
-                showReportCard(year)
+                val didPause = speed != 0
+                if (didPause) { lastRunSpeed = speed; speed = 0; updatePlayPauseText(); updateSpeedChipText() }
+                showReportCard(year, resume = didPause)
             }
         }
         while (MicropolisNative.pollEvent(handle, eventBuf)) {
@@ -1011,7 +1012,7 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton("OK", null).show()
     }
 
-    private fun showReportCard(year: Int) {
+    private fun showReportCard(year: Int, resume: Boolean) {
         sim.post {
             val ev = IntArray(7); MicropolisNative.getEvaluation(handle, ev)
             val b = IntArray(12); MicropolisNative.getBudget(handle, b)
@@ -1024,10 +1025,16 @@ class MainActivity : AppCompatActivity() {
                     Approval: ${ev[6]}%
                     Funds: $${b[0]}    Tax: ${b[1]}%
                 """.trimIndent()
+                // Resume the sim at its previous speed once the player dismisses the card.
+                val onContinue = android.content.DialogInterface.OnClickListener { _, _ ->
+                    if (resume && speed == 0) {
+                        speed = lastRunSpeed; updatePlayPauseText(); updateSpeedChipText()
+                    }
+                }
                 androidx.appcompat.app.AlertDialog.Builder(this)
                     .setTitle("Annual Report — $year")
                     .setMessage(msg)
-                    .setPositiveButton("Continue", null)
+                    .setPositiveButton("Continue", onContinue)
                     .setCancelable(false)
                     .show()
             }
