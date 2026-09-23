@@ -41,6 +41,9 @@ class MainActivity : AppCompatActivity() {
     private var cursor = -1                          // index of the current live state
     private var snapSeq = 0
     private val undoCap = 24
+    // engine gToolSize, index = tool value; default 1 for anything past the table
+    private val toolFootprints = intArrayOf(3,3,3,3, 3,1,1,1, 1,1,4,1, 4,4,4,6, 1,1,1,1)
+    private fun footprintOf(tool: Int) = toolFootprints.getOrElse(tool) { 1 }
     private lateinit var topBar: LinearLayout
     private lateinit var cityTitle: android.widget.TextView
     private lateinit var subtitle: android.widget.TextView
@@ -401,6 +404,7 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(root)
 
+        mapView.toolFootprint = footprintOf(currentTool)
         updatePill()
         updateUndoButtons()
 
@@ -429,6 +433,7 @@ class MainActivity : AppCompatActivity() {
         val ti = allTools.first { it.value == currentTool }
         pillIcon.setImageResource(ti.icon)
         pillName.text = ti.label
+        mapView.toolFootprint = footprintOf(currentTool)
     }
 
     private fun newSnapPath(): String { snapSeq++; return java.io.File(snapDir, "s$snapSeq.cty").absolutePath }

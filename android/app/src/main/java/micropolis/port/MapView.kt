@@ -28,6 +28,14 @@ class MapView(context: Context) : View(context) {
     var onTileTap: ((Int, Int) -> Unit)? = null
     var onStrokeEnd: ((built: Boolean) -> Unit)? = null
     
+    var toolFootprint: Int = 1            // set by MainActivity; >1 == place-on-lift
+    private var ghostX = -1               // tile coords of the ghost anchor; -1 == no ghost
+    private var ghostY = -1
+    private val ghostFill = Paint().apply { color = 0x55F5A623; style = Paint.Style.FILL }
+    private val ghostStroke = Paint().apply {
+        color = 0xFFF5A623.toInt(); style = Paint.Style.STROKE; strokeWidth = 3f; isAntiAlias = true
+    }
+    
     private var scale = 1f
     private var panX = 0f
     private var panY = 0f
@@ -58,12 +66,23 @@ class MapView(context: Context) : View(context) {
             MotionEvent.ACTION_DOWN -> {
                 built = false
                 lastBuiltTile = null
-                buildAt(event.x, event.y)
+                if (toolFootprint > 1) {
+                    val tileX = tileXat(event.x)
+                    val tileY = tileYat(event.y)
+                    ghostX = tileX
+                    ghostY = tileY
+                    invalidate()
+                } else {
+                    buildAt(event.x, event.y)
+                }
             }
             MotionEvent.ACTION_POINTER_DOWN -> {
                 built = false
                 panning = true
                 lastBuiltTile = null
+                ghostX = -1
+                ghostY = -1
+                invalidate()
                 lastFocusX = focusX(event)
                 lastFocusY = focusY(event)
             }
@@ -78,10 +97,24 @@ class MapView(context: Context) : View(context) {
                     clampPan()
                     invalidate()
                 } else if (!panning) {
-                    buildAt(event.x, event.y)
+                    if (toolFootprint > 1) {
+                        val tileX = tileXat(event.x)
+                        val tileY = tileYat(event.y)
+                        ghostX = tileX
+                        ghostY = tileY
+                        invalidate()
+                    } else {
+                        buildAt(event.x, event.y)
+                    }
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                if (toolFootprint > 1 && !panning && ghostX >= 0) {
+                    onTileTap?.invoke(ghostX, ghostY)
+                    built = true
+                }
+                ghostX = -1
+                ghostY = -1
                 panning = false
                 lastBuiltTile = null
                 onStrokeEnd?.invoke(built)
@@ -113,6 +146,9 @@ class MapView(context: Context) : View(context) {
         }
     }
 
+    private fun tileXat(px: Float) = (((px - panX) / scale) / tileSize).toInt().coerceIn(0, cols - 1)
+    private fun tileYat(py: Float) = (((py - panY) / scale) / tileSize).toInt().coerceIn(0, rows - 1)
+
     private fun clampPan() {
         val mapW = tileSize * cols * scale
         if (mapW <= width) {
@@ -128,8 +164,6 @@ class MapView(context: Context) : View(context) {
             panY = panY.coerceIn(height - mapH, 0f)
         }
     }
-
-
 
     override fun onDraw(canvas: Canvas) {
         tileSize = width.toFloat() / cols
@@ -152,6 +186,19 @@ class MapView(context: Context) : View(context) {
         }
         
         canvas.restore()
+        
+        // Draw ghost for place-on-lift tools
+        if (toolFootprint > 1 && ghostX >= 0) {
+            val n = toolFootprint
+            val tlx = ghostX - 1
+            val tly = ghostY - 1
+            val left = panX + tlx * tileSize * scale
+            val top  = panY + tly * tileSize * scale
+            val side = n * tileSize * scale
+            val r = RectF(left, top, left + side, top + side)
+            canvas.drawRect(r, ghostFill)
+            canvas.drawRect(r, ghostStroke)
+        }
     }
 
     private inner class ScaleListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {
