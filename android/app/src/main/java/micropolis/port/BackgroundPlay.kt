@@ -11,6 +11,8 @@ internal fun MainActivity.startBackgroundPlay() {
     val now = System.currentTimeMillis()
     val ctx = applicationContext
     sim.post {
+        val st = IntArray(10); MicropolisNative.getStats(handle, st)
+        prefs.edit().putInt("bgLeftMonth", st[4] * 12 + st[5]).commit()   // for "while you were away"
         MicropolisNative.saveCity(handle, BackgroundScheduler.anchorFile(ctx).path)
         BackgroundScheduler.start(ctx, MicropolisNative.getRng(handle), now)
     }
@@ -27,6 +29,8 @@ internal fun MainActivity.resumeFromBackgroundPlay() {
         simSuspended = false
         if (res == null) return@post
         MicropolisNative.saveCity(handle, autosavePath)
+        val st = IntArray(10); MicropolisNative.getStats(handle, st)
+        val away = (st[4] * 12 + st[5]) - prefs.getInt("bgLeftMonth", st[4] * 12 + st[5])
         ui.post {
             resetHistory()                                       // the city moved on; old undo no longer applies
             for ((m, x, y) in caught) logMessage(GameText.messages.getOrElse(m) { "City event" }, x, y)
@@ -35,9 +39,11 @@ internal fun MainActivity.resumeFromBackgroundPlay() {
                 updatePlayPauseText(); updateSpeedChipText()
                 if (res.x >= 0) mapView.centerOnTile(res.x, res.y)
                 showBanner("⏸  ${res.title}")
-            } else if (res.caughtUpTicks > 0) {
-                val months = res.caughtUpTicks / (BackgroundSim.TICKS_PER_YEAR / 12)
-                showBanner("While you were away: $months month${if (months == 1) "" else "s"} passed")
+            } else if (away > 0) {
+                val y = away / 12; val m = away % 12
+                val parts = listOfNotNull(if (y > 0) "$y year${if (y == 1) "" else "s"}" else null,
+                                          if (m > 0) "$m month${if (m == 1) "" else "s"}" else null)
+                showBanner("While you were away: ${parts.joinToString(", ")} passed")
             }
         }
     }
