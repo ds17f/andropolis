@@ -135,6 +135,73 @@ typedef enum MicropolisToolResult {
 /* Apply a tool at tile (x, y). Returns a MicropolisToolResult value. */
 int micropolis_do_tool(MicropolisEngine *e, int tool, int x, int y);
 
+/* ---- Overlays (map render modes) ----
+ * The engine keeps several data maps at lower resolution than the tile map.
+ * micropolis_copy_overlay upsamples the selected map (nearest-neighbour) to the
+ * full W*H tile grid and writes an intensity 0..255 per tile, so the renderer can
+ * tint tiles without knowing the source resolution.
+ */
+typedef enum MicropolisOverlay {
+    MICROPOLIS_OVERLAY_NONE       = 0,
+    MICROPOLIS_OVERLAY_POPULATION = 1,  /* populationDensityMap (half res)  */
+    MICROPOLIS_OVERLAY_TRAFFIC    = 2,  /* trafficDensityMap   (half res)  */
+    MICROPOLIS_OVERLAY_POLLUTION  = 3,  /* pollutionDensityMap (half res)  */
+    MICROPOLIS_OVERLAY_LANDVALUE  = 4,  /* landValueMap        (half res)  */
+    MICROPOLIS_OVERLAY_CRIME      = 5,  /* crimeRateMap        (half res)  */
+    MICROPOLIS_OVERLAY_GROWTH     = 6,  /* rateOfGrowthMap     (1/8 res)   */
+    MICROPOLIS_OVERLAY_POWER      = 7   /* powerGridMap        (full res)  */
+} MicropolisOverlay;
+/*
+ * Fill dst (dst_len must be >= W*H == 12000) COLUMN-MAJOR (dst[x*H + y]) with an
+ * intensity 0..255 per tile for the given overlay. Growth is signed in the
+ * engine; it is mapped to 0..255 with 128 == no growth. Returns the number of
+ * tiles written, or 0 if dst is NULL, dst_len too small, or overlay is NONE.
+ */
+int micropolis_copy_overlay(const MicropolisEngine *e, int overlay,
+                            unsigned char *dst, int dst_len);
+
+/* ---- History graphs ----
+ * Six tracked series, each at two time scales. Values are the engine's own
+ * history values (already scaled for display).
+ */
+typedef enum MicropolisHistory {
+    MICROPOLIS_HIST_RES       = 0,  /* HISTORY_TYPE_RES       */
+    MICROPOLIS_HIST_COM       = 1,  /* HISTORY_TYPE_COM       */
+    MICROPOLIS_HIST_IND       = 2,  /* HISTORY_TYPE_IND       */
+    MICROPOLIS_HIST_MONEY     = 3,  /* HISTORY_TYPE_MONEY     */
+    MICROPOLIS_HIST_CRIME     = 4,  /* HISTORY_TYPE_CRIME     */
+    MICROPOLIS_HIST_POLLUTION = 5   /* HISTORY_TYPE_POLLUTION */
+} MicropolisHistory;
+#define MICROPOLIS_HISTORY_LEN 120   /* samples returned per series/scale */
+/*
+ * scale: 0 == short (10-year), 1 == long (120-year).
+ * Fill dst (dst_len must be >= MICROPOLIS_HISTORY_LEN) with the series, ordered
+ * OLDEST FIRST: dst[0] is the oldest sample, dst[LEN-1] the newest. Returns the
+ * number of samples written, or 0 on bad args.
+ */
+int micropolis_get_history(const MicropolisEngine *e, int history, int scale,
+                           int *dst, int dst_len);
+
+/* ---- Disasters ---- */
+typedef enum MicropolisDisaster {
+    MICROPOLIS_DISASTER_FIRE       = 0,  /* makeFire       */
+    MICROPOLIS_DISASTER_FLOOD      = 1,  /* makeFlood      */
+    MICROPOLIS_DISASTER_TORNADO    = 2,  /* makeTornado    */
+    MICROPOLIS_DISASTER_EARTHQUAKE = 3,  /* makeEarthquake */
+    MICROPOLIS_DISASTER_MONSTER    = 4,  /* makeMonster    */
+    MICROPOLIS_DISASTER_MELTDOWN   = 5   /* makeMeltdown   */
+} MicropolisDisaster;
+/* Trigger a disaster. Unknown values are ignored. */
+void micropolis_make_disaster(MicropolisEngine *e, int disaster);
+
+/* ---- Budget funding ----
+ * Manual funding levels as whole percents 0..100. This turns autoBudget OFF so
+ * the manual levels take effect. Use micropolis_set_auto_budget to restore auto.
+ */
+void micropolis_set_funding(MicropolisEngine *e,
+                            int road_pct, int fire_pct, int police_pct);
+void micropolis_set_auto_budget(MicropolisEngine *e, int on); /* on: 1/0 */
+
 #ifdef __cplusplus
 }
 #endif
