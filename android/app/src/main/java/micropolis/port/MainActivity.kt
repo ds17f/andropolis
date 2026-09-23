@@ -1,5 +1,6 @@
 package micropolis.port
 
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
@@ -8,6 +9,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.LinearLayout.LayoutParams
 import android.widget.PopupMenu
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -67,6 +69,15 @@ class MainActivity : AppCompatActivity() {
 
     data class ToolItem(val label: String, val value: Int, val icon: Int)
 
+    private fun roundedBg(color: Int, radiusDp: Int): GradientDrawable {
+        val d = GradientDrawable()
+        d.setColor(color)
+        d.cornerRadius = radiusDp * resources.displayMetrics.density
+        return d
+    }
+
+    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -88,6 +99,7 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(0xFF12161C.toInt())
             setPadding(16, 40, 16, 12)
+            elevation = dp(6).toFloat()
         }
 
         // Row 1: city title, play/pause, speed chip, overflow
@@ -125,6 +137,8 @@ class MainActivity : AppCompatActivity() {
         // Play/Pause button
         playPauseBtn = Button(this).apply {
             setText("⏸")
+            background = roundedBg(0xFFF5A623.toInt(), 12)
+            setTextColor(0xFF1A1207.toInt())
             setOnClickListener {
                 if (speed == 0) {
                     speed = lastRunSpeed
@@ -135,12 +149,17 @@ class MainActivity : AppCompatActivity() {
                 updatePlayPauseText()
                 updateSpeedChipText()
             }
+            setPadding(dp(14), dp(8), dp(14), dp(8))
+            stateListAnimator = null
+            setTextSize(14f)
         }
-        row1.addView(playPauseBtn)
+        row1.addView(playPauseBtn, LayoutParams(dp(48), LayoutParams.WRAP_CONTENT).apply { setMargins(8, 0, 0, 0) })
 
         // Speed chip
         speedChip = Button(this).apply {
             setText(speedNames[speed])
+            background = roundedBg(0x1FFFFFFF.toInt(), 12)
+            setTextColor(0xFFEEF2F6.toInt())
             setOnClickListener {
                 val next = if (speed == 3) 1 else speed + 1
                 speed = next
@@ -148,12 +167,17 @@ class MainActivity : AppCompatActivity() {
                 updateSpeedChipText()
                 updatePlayPauseText()
             }
+            setPadding(dp(14), dp(8), dp(14), dp(8))
+            stateListAnimator = null
+            setTextSize(14f)
         }
-        row1.addView(speedChip)
+        row1.addView(speedChip, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { setMargins(8, 0, 0, 0) })
 
         // Overflow button
         overflowBtn = Button(this).apply {
             setText("⋮")
+            background = roundedBg(0x1FFFFFFF.toInt(), 12)
+            setTextColor(0xFFEEF2F6.toInt())
             setOnClickListener {
                 val pm = PopupMenu(this@MainActivity, it as Button)
                 pm.menu.add("New city")
@@ -187,8 +211,11 @@ class MainActivity : AppCompatActivity() {
                 }
                 pm.show()
             }
+            setPadding(dp(14), dp(8), dp(14), dp(8))
+            stateListAnimator = null
+            setTextSize(14f)
         }
-        row1.addView(overflowBtn)
+        row1.addView(overflowBtn, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { setMargins(8, 0, 0, 0) })
         topBar.addView(row1)
 
         // Row 2: HUD chips (Funds, Population, Score)
@@ -199,13 +226,13 @@ class MainActivity : AppCompatActivity() {
         // Funds chip
         fundsChip = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(0x14FFFFFF.toInt())
+            background = roundedBg(0x14FFFFFF.toInt(), 12)
             layoutParams = LinearLayout.LayoutParams(
                 0,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 1f
-            )
-            setPadding(8, 6, 8, 6)
+            ).apply { setMargins(8, 0, 0, 0) }
+            setPadding(dp(12), dp(8), dp(12), dp(8))
         }
         val fundsLabel = android.widget.TextView(this).apply {
             setText("Funds")
@@ -225,13 +252,13 @@ class MainActivity : AppCompatActivity() {
         // Population chip
         popChip = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(0x14FFFFFF.toInt())
+            background = roundedBg(0x14FFFFFF.toInt(), 12)
             layoutParams = LinearLayout.LayoutParams(
                 0,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 1f
-            )
-            setPadding(8, 6, 8, 6)
+            ).apply { setMargins(8, 0, 0, 0) }
+            setPadding(dp(12), dp(8), dp(12), dp(8))
         }
         val popLabel = android.widget.TextView(this).apply {
             setText("Population")
@@ -251,13 +278,13 @@ class MainActivity : AppCompatActivity() {
         // Score chip
         scoreChip = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(0x14FFFFFF.toInt())
+            background = roundedBg(0x14FFFFFF.toInt(), 12)
             layoutParams = LinearLayout.LayoutParams(
                 0,
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 1f
-            )
-            setPadding(8, 6, 8, 6)
+            ).apply { setMargins(8, 0, 0, 0) }
+            setPadding(dp(12), dp(8), dp(12), dp(8))
         }
         val scoreLabel = android.widget.TextView(this).apply {
             setText("Score")
@@ -291,8 +318,9 @@ class MainActivity : AppCompatActivity() {
         // ===== Bottom controls =====
         bottom = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(0xFFEE12161C.toInt())
+            setBackgroundColor(0xFF12161C.toInt())
             setPadding(12, 10, 12, 14)
+            elevation = dp(6).toFloat()
         }
 
         // Contextual control row (Move/Build toggle, Preview, Confirm/Cancel)
@@ -304,11 +332,11 @@ class MainActivity : AppCompatActivity() {
         // Move/Build segmented toggle
         val modeContainer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            setBackgroundColor(0xFF1A222A.toInt())
-            setPadding(4, 4, 4, 4)
+            background = roundedBg(0xFF1A222A.toInt(), 14)
+            setPadding(dp(4), dp(4), dp(4), dp(4))
             layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
+                LayoutParams.WRAP_CONTENT,
+                LayoutParams.WRAP_CONTENT
             )
         }
 
@@ -317,7 +345,7 @@ class MainActivity : AppCompatActivity() {
             setTextColor(0xFF9AA7B4.toInt())
             setTextSize(14f)
             setTextIsSelectable(false)
-            setPadding(16, 12, 16, 12)
+            setPadding(dp(20), dp(8), dp(20), dp(8))
             setOnClickListener {
                 setBuildMode(false)
             }
@@ -329,8 +357,7 @@ class MainActivity : AppCompatActivity() {
             setTextColor(0xFF1A1207.toInt())
             setTextSize(14f)
             setTextIsSelectable(false)
-            setBackgroundColor(0xFFF5A623.toInt())
-            setPadding(16, 12, 16, 12)
+            setPadding(dp(20), dp(8), dp(20), dp(8))
             setOnClickListener {
                 setBuildMode(true)
             }
@@ -342,18 +369,25 @@ class MainActivity : AppCompatActivity() {
         // Preview button
         previewBtn = Button(this).apply {
             text = "Preview: Off"
+            background = roundedBg(0x1FFFFFFF.toInt(), 12)
+            setTextColor(0xFFEEF2F6.toInt())
             setOnClickListener {
                 previewMode = !previewMode
                 previewBtn.text = if (previewMode) "Preview: On" else "Preview: Off"
                 updatePendingBar()
             }
+            setPadding(dp(16), dp(8), dp(16), dp(8))
+            stateListAnimator = null
+            setTextSize(14f)
         }
-        ctrlRow.addView(previewBtn)
+        ctrlRow.addView(previewBtn, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { setMargins(8, 0, 0, 0) })
 
         // Confirm button (hidden by default)
         confirmBtn = Button(this).apply {
             text = "Confirm"
             visibility = View.GONE
+            background = roundedBg(0xFFF5A623.toInt(), 12)
+            setTextColor(0xFF1A1207.toInt())
             setOnClickListener {
                 val snapshot = pending.toList()
                 pending.clear()
@@ -365,40 +399,52 @@ class MainActivity : AppCompatActivity() {
                 }
                 updatePendingBar()
             }
+            setPadding(dp(16), dp(8), dp(16), dp(8))
+            stateListAnimator = null
+            setTextSize(14f)
         }
-        ctrlRow.addView(confirmBtn)
+        ctrlRow.addView(confirmBtn, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { setMargins(8, 0, 0, 0) })
 
         // Cancel button (hidden by default)
         cancelBtn = Button(this).apply {
             text = "Cancel"
             visibility = View.GONE
+            background = roundedBg(0x1FFFFFFF.toInt(), 12)
+            setTextColor(0xFFEEF2F6.toInt())
             setOnClickListener {
                 pending.clear()
                 mapView.setPendingTiles(emptyList())
                 updatePendingBar()
             }
+            setPadding(dp(16), dp(8), dp(16), dp(8))
+            stateListAnimator = null
+            setTextSize(14f)
         }
-        ctrlRow.addView(cancelBtn)
+        ctrlRow.addView(cancelBtn, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { setMargins(8, 0, 0, 0) })
 
         bottom.addView(ctrlRow)
 
         // Tool pill (prominent, styled like the mockup)
         val pillLayout = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            setBackgroundColor(0x0FFFFFFF.toInt())
-            setPadding(12, 12, 12, 12)
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                (56 * resources.displayMetrics.density).toInt()
-            )
+            background = roundedBg(0xFF1A222A.toInt(), 18)
+            setPadding(dp(14), dp(8), dp(14), dp(8))
             setOnClickListener { openPalette() }
         }
 
-        pillIcon = ImageView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(40, 40)
-            imageTintList = android.content.res.ColorStateList.valueOf(0xFFF5A623.toInt())
+        // Pill icon in rounded amber container
+        val pillIconContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            background = roundedBg(0x33F5A623.toInt(), 12)
+            layoutParams = LinearLayout.LayoutParams(dp(44), dp(44))
         }
-        pillLayout.addView(pillIcon)
+        pillIcon = ImageView(this).apply {
+            imageTintList = android.content.res.ColorStateList.valueOf(0xFFF5A623.toInt())
+            layoutParams = LayoutParams(dp(44), dp(44)).apply { gravity = android.view.Gravity.CENTER }
+            scaleType = ImageView.ScaleType.CENTER
+        }
+        pillIconContainer.addView(pillIcon)
+        pillLayout.addView(pillIconContainer)
 
         val pillInfo = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -406,7 +452,7 @@ class MainActivity : AppCompatActivity() {
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
-            setPadding(12, 0, 12, 0)
+            setPadding(dp(12), 0, dp(12), 0)
         }
 
         val pillLabel = TextView(this).apply {
@@ -433,7 +479,7 @@ class MainActivity : AppCompatActivity() {
         }
         pillLayout.addView(pillArrow)
 
-        bottom.addView(pillLayout)
+        bottom.addView(pillLayout, LayoutParams(LayoutParams.MATCH_PARENT, dp(56)).apply { setMargins(0, dp(12), 0, 0) })
 
         root.addView(bottom)
 
@@ -502,15 +548,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun styleModeSegments() {
         if (buildMode) {
+            segBuild.background = roundedBg(0xFFF5A623.toInt(), 10)
             segBuild.setTextColor(0xFF1A1207.toInt())
-            segBuild.setBackgroundColor(0xFFF5A623.toInt())
+            segMove.background = null
             segMove.setTextColor(0xFF9AA7B4.toInt())
-            segMove.setBackgroundColor(0xFF1A222A.toInt())
         } else {
+            segMove.background = roundedBg(0xFFF5A623.toInt(), 10)
             segMove.setTextColor(0xFF1A1207.toInt())
-            segMove.setBackgroundColor(0xFFF5A623.toInt())
+            segBuild.background = null
             segBuild.setTextColor(0xFF9AA7B4.toInt())
-            segBuild.setBackgroundColor(0xFF1A222A.toInt())
         }
     }
 
