@@ -105,6 +105,15 @@ typedef struct MicropolisEvaluation {
 } MicropolisEvaluation;   /* 7 ints */
 void micropolis_get_evaluation(const MicropolisEngine *e, MicropolisEvaluation *out);
 
+/* ---- Citizen poll: worst problems ----
+ * Problem ids (engine CVP_*): 0 Crime, 1 Pollution, 2 Housing, 3 Taxes, 4 Traffic,
+ * 5 Unemployment, 6 Fire. The engine ranks up to 4 each evaluation.
+ * Fills ids[i] / votes[i] (votes = % of polled citizens naming it) worst-first for up to
+ * n entries (n <= 4). Returns the count written (0 if no evaluation has run yet).
+ * (Engine: countProblems / getProblemNumber / getProblemVotes.)
+ */
+int micropolis_get_problems(const MicropolisEngine *e, int *ids, int *votes, int n);
+
 /* ---- Tools / interaction ---- */
 /*
  * These MUST equal the engine's EditingTool (tool.h). The implementation adds
