@@ -51,6 +51,32 @@ class MainActivity : AppCompatActivity() {
     private val overlayNames = arrayOf("Off","Population","Traffic","Pollution","Land value","Crime","Growth","Power")
     private var annualReportEnabled = true
     private var lastReportYear = -1
+    private val eventBuf = IntArray(9)
+    private lateinit var messageBanner: TextView
+    private val bannerHide = Runnable { messageBanner.visibility = View.GONE }
+    private var lastEventTile: Pair<Int, Int>? = null
+    private val messageText = arrayOf(
+        "", "More residential zones needed", "More commercial zones needed",
+        "More industrial zones needed", "More roads required", "Inadequate rail system",
+        "Build a power plant", "Residents demand a stadium", "Industry requires a seaport",
+        "Commerce requires an airport", "Pollution very high", "Crime very high",
+        "Frequent traffic jams reported", "Citizens demand a fire department",
+        "Citizens demand a police department", "Blackouts reported — check the power map",
+        "Citizens upset: taxes too high", "Roads deteriorating — underfunded",
+        "Fire departments need funding", "Police departments need funding", "Fire reported!",
+        "A monster has been sighted!", "Tornado reported!", "Major earthquake reported!",
+        "A plane has crashed!", "Shipwreck reported!", "A train crashed!",
+        "A helicopter crashed!", "Unemployment is high", "YOUR CITY HAS GONE BROKE!",
+        "Firebombing reported!", "Need more parks", "Explosion detected!",
+        "Insufficient funds to build that", "Area must be bulldozed first",
+        "Population has reached 2,000", "Population has reached 10,000",
+        "Population has reached 50,000", "Population has reached 100,000",
+        "Population has reached 500,000", "Brownouts — build another power plant",
+        "Heavy traffic reported", "Flooding reported!", "A nuclear meltdown has occurred!",
+        "They're rioting in the streets!", "Started a new city", "Restored a saved city",
+        "You won the scenario!", "You lost the scenario", "About Micropolis"
+    )
+    private fun msgText(i: Int) = messageText.getOrElse(i) { "City update" }
     // engine gToolSize, index = tool value; default 1 for anything past the table
     private val toolFootprints = intArrayOf(3,3,3,3, 3,1,1,1, 1,1,4,1, 4,4,4,6, 1,1,1,1)
     private fun footprintOf(tool: Int) = toolFootprints.getOrElse(tool) { 1 }
@@ -74,6 +100,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var panelBar: LinearLayout
     private lateinit var simState: TextView
     private lateinit var overlayState: TextView
+    private var mapContainer: android.widget.FrameLayout = null!!
 
     // Road / rail / wire draw straight axis-locked lines when dragged.
     private fun isStraightLineTool(tool: Int) = tool == 6 || tool == 8 || tool == 9
@@ -494,7 +521,7 @@ class MainActivity : AppCompatActivity() {
             LinearLayout.LayoutParams.WRAP_CONTENT))
 
         minimap = MinimapView(this)
-        val mapContainer = android.widget.FrameLayout(this)
+        mapContainer = android.widget.FrameLayout(this)
         mapContainer.addView(mapView, android.widget.FrameLayout.LayoutParams(
             android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
             android.widget.FrameLayout.LayoutParams.MATCH_PARENT))
@@ -502,6 +529,19 @@ class MainActivity : AppCompatActivity() {
             gravity = android.view.Gravity.TOP or android.view.Gravity.END
             setMargins(0, dp(8), dp(8), 0)
         })
+        messageBanner = TextView(this).apply {
+            visibility = View.GONE
+            setTextColor(0xFFEEF2F6.toInt()); textSize = 13f
+            background = roundedBg(0xE6202A36.toInt(), 12)
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            setOnClickListener { lastEventTile?.let { mapView.centerOnTile(it.first, it.second) } }
+        }
+        mapContainer.addView(messageBanner, android.widget.FrameLayout.LayoutParams(
+            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT).apply {
+                gravity = android.view.Gravity.TOP or android.view.Gravity.START
+                setMargins(dp(8), dp(8), dp(8), 0)
+            })
         root.addView(mapContainer, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
@@ -661,6 +701,29 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun newSnapPath(): String { snapSeq++; return java.io.File(snapDir, "s$snapSeq.cty").absolutePath }
+
+    private fun showBanner(text: String) {
+        messageBanner.text = text
+        messageBanner.visibility = View.VISIBLE
+        ui.removeCallbacks(bannerHide)
+        ui.postDelayed(bannerHide, 6000)
+    }
+
+    private fun levelName(i: Int) = arrayOf("None","Low","Medium","High","Very high").getOrElse(i) { "$i" }
+
+    private fun showZoneStatusDialog(x: Int, y: Int, cat: Int, pop: Int, lv: Int, crime: Int, poll: Int, growth: Int) {
+        val msg = """
+            Tile category: $cat
+            Population density: ${levelName(pop)}
+            Land value: ${levelName(lv)}
+            Crime rate: ${levelName(crime)}
+            Pollution: ${levelName(poll)}
+            Growth rate: ${levelName(growth)}
+        """.trimIndent()
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Zone at ($x, $y)").setMessage(msg)
+            .setPositiveButton("OK", null).show()
+    }
 
     /** Snapshot the current (post-build) state as the new head, dropping any redo branch. */
     private fun commitSnapshot() {
@@ -893,6 +956,27 @@ class MainActivity : AppCompatActivity() {
             ui.post {
                 if (speed != 0) { lastRunSpeed = speed; speed = 0; updatePlayPauseText(); updateSpeedChipText() }
                 showReportCard(year)
+            }
+        }
+        while (MicropolisNative.pollEvent(handle, eventBuf)) {
+            val type = eventBuf[0]; val ex = eventBuf[1]; val ey = eventBuf[2]
+            val a = eventBuf[3]; val b = eventBuf[4]; val c = eventBuf[5]
+            val d = eventBuf[6]; val e2 = eventBuf[7]; val f = eventBuf[8]
+            ui.post {
+                when (type) {
+                    0 -> { // MESSAGE
+                        showBanner(msgText(a))
+                        if (ex >= 0 && ey >= 0) {
+                            lastEventTile = Pair(ex, ey)
+                            if (c == 1) mapView.centerOnTile(ex, ey)   // important → auto-zoom
+                        }
+                    }
+                    1 -> showZoneStatusDialog(ex, ey, a, b, c, d, e2, f) // Query result
+                    2 -> { lastEventTile = Pair(ex, ey); mapView.centerOnTile(ex, ey) } // AUTO_GOTO
+                    3 -> showBanner("Earthquake! (strength $a)")
+                    4 -> showBanner("Your city has fallen.")
+                    5 -> showBanner("You won!")
+                }
             }
         }
         sim.postDelayed({ tickLoop() }, 100)
