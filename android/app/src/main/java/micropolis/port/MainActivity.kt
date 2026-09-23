@@ -34,8 +34,12 @@ class MainActivity : AppCompatActivity() {
     @Volatile internal var speed = 2   // 0=Pause 1=Slow 2=Med 3=Fast 4=Turbo
     internal var lastRunSpeed = 2
     internal val speedNames = arrayOf("Pause", "Slow", "Med", "Fast", "Turbo")
-    internal val engineSpeed = intArrayOf(0, 1, 2, 3, 3)   // engine frame-skip mode per UI speed
-    internal val ticksPerFrame = intArrayOf(0, 1, 1, 1, 7) // Turbo ≈ 210 steps/s like the old Fast
+    // Engine ticks per second per UI speed. The engine always runs at its speed 3 (one
+    // simulate() per tick), so the tick rate sets both the sim pace and how fast sprites
+    // move, as in the original game. Sim pace matches the engine's own Slow/Med/Fast
+    // frame-skip (every 5th / 3rd / every tick at 30 fps); Turbo ≈ 210 steps/s.
+    internal val ticksPerSecond = doubleArrayOf(0.0, 6.0, 10.0, 30.0, 210.0)
+    internal var tickDebt = 0.0   // fractional ticks carried to the next frame (sim thread)
     internal val taxRates = intArrayOf(0, 5, 7, 9, 12, 15, 20)
     internal var taxIdx = 2   // start at 7%
     internal val autosavePath by lazy { java.io.File(filesDir, "autosave.cty").absolutePath }

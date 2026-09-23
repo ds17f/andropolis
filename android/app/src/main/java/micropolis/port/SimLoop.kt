@@ -57,12 +57,13 @@ internal fun MainActivity.tickLoop() {
         if (lastPublicAutosaveMs == 0L) lastPublicAutosaveMs = now
         if (now - lastPublicAutosaveMs > 5 * 60_000L) publicAutosave()
     }
-    // Set the engine's frame-skip mode every frame: loads/undo/generate reset it to Fast,
-    // and this runs on the sim thread after them. Pause = 0 ticks, engine stays running.
-    val sp = speed
-    if (handle != 0L) MicropolisNative.setSpeed(handle, maxOf(1, engineSpeed[sp]))
+    // Engine speed 3 every frame: loads/undo/generate reset it, and this runs on the sim
+    // thread after them. The UI speed only sets how many ticks we run (Pause = 0).
+    if (handle != 0L) MicropolisNative.setSpeed(handle, 3)
     if (handle != 0L) MicropolisNative.setEnableDisasters(handle, 0)   // only our monthly roll (see below)
-    repeat(ticksPerFrame[sp]) { MicropolisNative.simTick(handle) }
+    tickDebt = (tickDebt + ticksPerSecond[speed] / 30.0).coerceAtMost(16.0)
+    val n = tickDebt.toInt(); tickDebt -= n
+    repeat(n) { MicropolisNative.simTick(handle) }
     MicropolisNative.copyTiles(handle, buf)
     val tilesCopy = buf.copyOf()
     val spriteBuf = IntArray(4 * 32)
@@ -134,5 +135,5 @@ internal fun MainActivity.tickLoop() {
             }
         }
     }
-    sim.postDelayed({ tickLoop() }, 33)   // 30 fps; the engine frame-skips per speed
+    sim.postDelayed({ tickLoop() }, 33)   // 30 fps; ticksPerSecond sets the pace
 }

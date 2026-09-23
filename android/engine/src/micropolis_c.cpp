@@ -311,7 +311,15 @@ void micropolis_make_disaster(MicropolisEngine *e, int disaster) {
         case MICROPOLIS_DISASTER_FLOOD:      e->sim->makeFlood(); break;
         case MICROPOLIS_DISASTER_TORNADO:    e->sim->makeTornado(); break;
         case MICROPOLIS_DISASTER_EARTHQUAKE: e->sim->makeEarthquake(); break;
-        case MICROPOLIS_DISASTER_MONSTER:    e->sim->makeMonster(); break;
+        case MICROPOLIS_DISASTER_MONSTER:
+            e->sim->makeMonster();
+            // Upstream kills the monster when it stands on RIVER while count != 0, but
+            // makeMonster() spawns it in the river with count = 1000, so on wide rivers
+            // it died within a few ticks of "monster sighted". count = 0 removes only
+            // that rule: it still walks to the pollution peak and back, then leaves.
+            for (SimSprite *s = e->sim->spriteList; s; s = s->next)
+                if (s->type == SPRITE_MONSTER) s->count = 0;
+            break;
         case MICROPOLIS_DISASTER_MELTDOWN:   e->sim->makeMeltdown(); break;
         default:                             break;
     }
