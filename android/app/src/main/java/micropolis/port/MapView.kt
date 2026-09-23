@@ -129,7 +129,10 @@ class MapView(context: Context) : View(context) {
                     anchorY = tileYat(event.y)
                 }
             }
-            MotionEvent.ACTION_POINTER_DOWN -> if (!navLocked) {
+            // A second finger always cancels the build stroke. In minimap-nav mode it
+            // then does nothing at all (the pan branch below is gated off), so two-finger
+            // touches never place objects.
+            MotionEvent.ACTION_POINTER_DOWN -> {
                 built = false
                 panning = true
                 pendingDown = false      // cancel the tentative tap: no stray tile
@@ -155,6 +158,9 @@ class MapView(context: Context) : View(context) {
                         ghostX = tileXat(event.x)
                         ghostY = tileYat(event.y)
                         invalidate()
+                    } else if (tapOnlyTool) {
+                        // Query acts only on a clean tap: sliding off the tile cancels it.
+                        if (tileXat(event.x) != anchorX || tileYat(event.y) != anchorY) pendingDown = false
                     } else {
                         pendingDown = false      // committed to a drag
                         val curX = tileXat(event.x)

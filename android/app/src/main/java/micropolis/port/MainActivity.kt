@@ -58,6 +58,7 @@ class MainActivity : AppCompatActivity() {
     private var lastReportFunds = -1        // for the annual-report funds delta
     private var lastReportApproval = -1     // for the annual-report approval delta
     private var minimapNav = false          // Settings: minimap navigation mode
+    private var autoGoto = true             // Settings: jump the map to events as they happen
     private val navZoom = 5f                 // fixed zoom when minimap navigation is on
     private val eventBuf = IntArray(9)
     private lateinit var messageBanner: TextView
@@ -91,6 +92,15 @@ class MainActivity : AppCompatActivity() {
         "You won the scenario!", "You lost the scenario", "About Micropolis"
     )
     private fun msgText(i: Int) = messageText.getOrElse(i) { "City update" }
+    /** Icon for an engine message index (1..57) — shown in the toast and the feed. */
+    private fun msgIcon(i: Int): String = when (i) {
+        1 -> "🏠"; 2 -> "🏢"; 3 -> "🏭"; 4 -> "🛣"; 5, 26 -> "🚆"; 6, 15, 40 -> "⚡"
+        7 -> "🏟"; 8, 25 -> "⚓"; 9, 24 -> "✈"; 10 -> "☁"; 11 -> "🚨"; 12, 41 -> "🚗"
+        13 -> "🚒"; 14 -> "🚓"; 16, 17, 18, 19 -> "💰"; 20 -> "🔥"; 21 -> "👾"; 22 -> "🌪"
+        23 -> "⛰"; 27 -> "🚁"; 28 -> "📉"; 29, 33 -> "💸"; 30 -> "💣"; 31 -> "🌳"; 32 -> "💥"
+        34 -> "🚜"; in 35..39 -> "🎉"; 42 -> "🌊"; 43 -> "☢"; 44 -> "✊"; 45, 46 -> "🏙"
+        47 -> "🏆"; 48 -> "💀"; else -> "ℹ"
+    }
     // engine gToolSize, index = tool value; default 1 for anything past the table
     private val toolFootprints = intArrayOf(3,3,3,3, 3,1,1,1, 1,1,4,1, 4,4,4,6, 1,1,1,1)
     private fun footprintOf(tool: Int) = toolFootprints.getOrElse(tool) { 1 }
@@ -100,6 +110,7 @@ class MainActivity : AppCompatActivity() {
     // history graph colors and labels (res, com, ind, money, crime, poll)
     private val histColors = intArrayOf(0xFF4CAF50.toInt(), 0xFF42A5F5.toInt(), 0xFFF5A623.toInt(),
         0xFFEEF2F6.toInt(), 0xFFE5533D.toInt(), 0xFF9C6ADE.toInt())   // money = white (distinct from residential green)
+    private val histVisible = BooleanArray(6) { true }   // graph line toggles (persist while app runs)
     private val histNames = arrayOf("Residential", "Commercial", "Industrial", "Money", "Crime", "Pollution")
     private lateinit var topBar: LinearLayout
     private lateinit var cityTitle: android.widget.TextView
@@ -202,7 +213,8 @@ class MainActivity : AppCompatActivity() {
                 setTypeface(null, android.graphics.Typeface.BOLD) })
         }
         showPanel("City", listOf(
-            PanelTab("Evaluation", "🏛") {
+            PanelTab("Overview", "🏛") {
+                // Evaluation + city-wide stats in one tab.
                 LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
                     addView(row("Class", cityClassNames.getOrElse(ev[2]) { "?" }))
@@ -210,6 +222,14 @@ class MainActivity : AppCompatActivity() {
                     addView(row("Score", "${ev[0]}  (Δ ${ev[1]})"))
                     addView(row("Approval", "${ev[6]}%"))
                     addView(row("Assessed value", "$${ev[5]}"))
+                    addView(View(this@MainActivity).apply {
+                        setBackgroundColor(0x1FFFFFFF)
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1))
+                            .apply { topMargin = dp(8); bottomMargin = dp(4) }
+                    })
+                    addView(statBar("Crime", crime)); addView(statBar("Pollution", poll))
+                    addView(statBar("Land value", land)); addView(statBar("Traffic", traffic))
+                    addView(statBar("Population density", density))
                 }
             },
             PanelTab("Budget", "💰") {
@@ -258,29 +278,20 @@ class MainActivity : AppCompatActivity() {
                 update()
                 col
             },
-            PanelTab("Stats", "📊") {
-                LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    addView(statBar("Crime", crime)); addView(statBar("Pollution", poll))
-                    addView(statBar("Land value", land)); addView(statBar("Traffic", traffic))
-                    addView(statBar("Population density", density))
-                }
-            },
             PanelTab("Graphs", "📈") {
                 val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
                 val scaleState = intArrayOf(0)                    // 0 = 10yr, 1 = 120yr
                 val graph = GraphView(this).apply {
                     layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(180))
                 }
+                val data = Array(6) { IntArray(120) }
+                fun redraw() {
+                    graph.setSeries((0..5).filter { histVisible[it] }.map { histColors[it] to data[it] })
+                }
                 fun load() {
                     sim.post {
-                        val s = ArrayList<Pair<Int, IntArray>>()
-                        for (t in 0..5) {
-                            val a = IntArray(120)
-                            MicropolisNative.getHistory(handle, t, scaleState[0], a)
-                            s.add(histColors[t] to a)
-                        }
-                        ui.post { graph.setSeries(s) }
+                        val fresh = Array(6) { t -> IntArray(120).also { MicropolisNative.getHistory(handle, t, scaleState[0], it) } }
+                        ui.post { for (t in 0..5) data[t] = fresh[t]; redraw() }
                     }
                 }
                 // scale toggle
@@ -300,10 +311,13 @@ class MainActivity : AppCompatActivity() {
                             width = 0
                             columnSpec = android.widget.GridLayout.spec(android.widget.GridLayout.UNDEFINED, 1f)
                         }
-                        orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL; setPadding(0, dp(3), 0, dp(3))
+                        orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL; setPadding(0, dp(6), 0, dp(6))
                         addView(View(this@MainActivity).apply { background = roundedBg(histColors[i], 3)
                             layoutParams = LinearLayout.LayoutParams(dp(14), dp(14)).apply { rightMargin = dp(8) } })
                         addView(TextView(this@MainActivity).apply { text = histNames[i]; setTextColor(0xFF9AA7B4.toInt()); textSize = 13f })
+                        // Tap to toggle this line; hidden series are dimmed.
+                        alpha = if (histVisible[i]) 1f else 0.35f
+                        setOnClickListener { histVisible[i] = !histVisible[i]; alpha = if (histVisible[i]) 1f else 0.35f; redraw() }
                     })
                 }
                 col.addView(legend)
@@ -462,11 +476,20 @@ class MainActivity : AppCompatActivity() {
                 setPadding(0, 0, 0, dp(12))
             }
             val chips = ArrayList<TextView>()
+            // Build every tab once (keeps slider/toggle state across tab switches), then
+            // size the content area to the TALLEST tab so the sheet never jumps.
+            val pages = tabs.map { t -> ScrollView(this).apply { addView(t.build()) } }
+            val innerW = resources.displayMetrics.widthPixels - dp(40)
+            val tallest = pages.maxOf { p ->
+                p.getChildAt(0).measure(
+                    View.MeasureSpec.makeMeasureSpec(innerW, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
+                p.getChildAt(0).measuredHeight
+            }
+            val contentH = minOf(tallest, (resources.displayMetrics.heightPixels * 0.72f).toInt())
             fun select(idx: Int) {
                 content.removeAllViews()
-                val sv = ScrollView(this)
-                sv.addView(tabs[idx].build())
-                content.addView(sv)
+                content.addView(pages[idx])
                 chips.forEachIndexed { i, c ->
                     val on = i == idx
                     c.background = roundedBg(if (on) 0xFFF5A623.toInt() else 0x1FFFFFFF, 10)
@@ -500,7 +523,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             col.addView(tabRow)
-            col.addView(content)
+            col.addView(content, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, contentH))
             select(0)
         } else {
             val sv = ScrollView(this)
@@ -508,6 +531,9 @@ class MainActivity : AppCompatActivity() {
             col.addView(sv)
         }
         sheet.setContentView(col)
+        // Open fully (not the half-height peek) so the fixed-height content is all visible.
+        sheet.behavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
+        sheet.behavior.skipCollapsed = true
         sheet.show()
     }
 
@@ -890,6 +916,7 @@ class MainActivity : AppCompatActivity() {
         minimap.onTileSelected = { tx, ty -> mapView.centerOnTile(tx, ty) }
         mapView.onViewportChanged = { l, t, r, b -> minimap.setViewport(l, t, r, b) }
         minimapNav = prefs.getBoolean("minimapNav", false)
+        autoGoto = prefs.getBoolean("autoGoto", true)
         applyMinimapMode()
 
         // Setup on sim thread
@@ -937,13 +964,29 @@ class MainActivity : AppCompatActivity() {
         ui.postDelayed(bannerHide, 6000)
     }
 
-    private fun levelName(i: Int) = arrayOf("None","Low","Medium","High","Very high").getOrElse(i) { "$i" }
+    // The engine's zone-status values are 1-based indices into these tables (engine data
+    // files stri.202 / stri.219): density 1-4, land value 5-8, crime 9-12,
+    // pollution 13-16, growth 17-20.
+    private val zoneStatusWords = arrayOf(
+        "Low", "Medium", "High", "Very High",
+        "Slum", "Lower Class", "Middle Class", "High",
+        "Safe", "Light", "Moderate", "Dangerous",
+        "None", "Moderate", "Heavy", "Very Heavy",
+        "Declining", "Stable", "Slow Growth", "Fast Growth")
+    private val tileCategoryNames = arrayOf(
+        "Clear", "Water", "Trees", "Rubble", "Flood", "Radioactive Waste", "Fire", "Road",
+        "Power", "Rail", "Residential", "Commercial", "Industrial", "Seaport", "Airport",
+        "Coal Power", "Fire Department", "Police Department", "Stadium", "Nuclear Power",
+        "Draw Bridge", "Radar Dish", "Fountain", "Industrial", "Stadium", "Draw Bridge",
+        "Nuclear Waste")
+    private fun statusWord(i: Int) = zoneStatusWords.getOrElse(i - 1) { "—" }
 
     private fun showZoneStatusDialog(x: Int, y: Int, cat: Int, pop: Int, lv: Int, crime: Int, poll: Int, growth: Int) {
-        styledDialog("Zone at ($x, $y)", listOf(
-            "Tile category" to "$cat", "Population density" to levelName(pop),
-            "Land value" to levelName(lv), "Crime rate" to levelName(crime),
-            "Pollution" to levelName(poll), "Growth rate" to levelName(growth)))
+        styledDialog(tileCategoryNames.getOrElse(cat - 1) { "Clear" }, listOf(
+            "Population density" to statusWord(pop),
+            "Land value" to statusWord(lv), "Crime" to statusWord(crime),
+            "Pollution" to statusWord(poll), "Growth" to statusWord(growth)),
+            subtitle = "Tile ($x, $y)")
     }
 
     /** Snapshot the current (post-build) state as the new head, dropping any redo branch. */
@@ -1174,18 +1217,19 @@ class MainActivity : AppCompatActivity() {
             ui.post {
                 when (type) {
                     0 -> { // MESSAGE
-                        showBanner(msgText(a))
-                        logMessage(msgText(a), ex, ey)
+                        val line = "${msgIcon(a)}  ${msgText(a)}"
+                        showBanner(line)
+                        logMessage(line, ex, ey)
                         if (ex >= 0 && ey >= 0) {
                             lastEventTile = Pair(ex, ey)
-                            if (c == 1) mapView.centerOnTile(ex, ey)   // important → auto-zoom
+                            if (autoGoto) mapView.centerOnTile(ex, ey)  // Settings → Auto go to events
                         }
                     }
                     1 -> showZoneStatusDialog(ex, ey, a, b, c, d, e2, f) // Query result
-                    2 -> { lastEventTile = Pair(ex, ey); mapView.centerOnTile(ex, ey) } // AUTO_GOTO
-                    3 -> showBanner("Earthquake! (strength $a)")
-                    4 -> showBanner("Your city has fallen.")
-                    5 -> showBanner("You won!")
+                    2 -> { lastEventTile = Pair(ex, ey); if (autoGoto) mapView.centerOnTile(ex, ey) } // AUTO_GOTO
+                    3 -> showBanner("⛰  Earthquake! (strength $a)")
+                    4 -> showBanner("💀  Your city has fallen.")
+                    5 -> showBanner("🏆  You won!")
                 }
             }
         }
@@ -1300,34 +1344,40 @@ class MainActivity : AppCompatActivity() {
         val sv = ScrollView(this); sv.addView(col); sheet.setContentView(sv); sheet.show()
     }
 
+    /** One Settings row: bold title, muted description, and a switch on the right. */
+    private fun settingsToggle(title: String, desc: String, checked: Boolean, onChange: (Boolean) -> Unit): View =
+        LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(0, dp(10), 0, dp(10))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                addView(TextView(this@MainActivity).apply {
+                    text = title; setTextColor(0xFFEEF2F6.toInt()); textSize = 15f
+                    setTypeface(null, android.graphics.Typeface.BOLD)
+                })
+                addView(TextView(this@MainActivity).apply {
+                    text = desc; setTextColor(0xFF9AA7B4.toInt()); textSize = 12f
+                })
+            })
+            addView(android.widget.Switch(this@MainActivity).apply {
+                isChecked = checked
+                setOnCheckedChangeListener { _, c -> onChange(c) }
+            })
+        }
+
     private fun showSettingsPanel() {
         showPanel("Settings", listOf(PanelTab("General") {
             LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
-                addView(LinearLayout(this@MainActivity).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = android.view.Gravity.CENTER_VERTICAL
-                    setPadding(0, dp(10), 0, dp(10))
-                    addView(LinearLayout(this@MainActivity).apply {
-                        orientation = LinearLayout.VERTICAL
-                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                        addView(TextView(this@MainActivity).apply {
-                            text = "Minimap navigation"; setTextColor(0xFFEEF2F6.toInt()); textSize = 15f
-                            setTypeface(null, android.graphics.Typeface.BOLD)
-                        })
-                        addView(TextView(this@MainActivity).apply {
-                            text = "Show the minimap and move with it (fixed zoom). Off = pinch zoom."
-                            setTextColor(0xFF9AA7B4.toInt()); textSize = 12f
-                        })
-                    })
-                    addView(android.widget.Switch(this@MainActivity).apply {
-                        isChecked = minimapNav
-                        setOnCheckedChangeListener { _, checked ->
-                            minimapNav = checked
-                            prefs.edit().putBoolean("minimapNav", checked).apply()
-                            applyMinimapMode()
-                        }
-                    })
+                addView(settingsToggle("Minimap navigation",
+                    "Show the minimap and move with it (fixed zoom). Off = pinch zoom.", minimapNav) { c ->
+                    minimapNav = c; prefs.edit().putBoolean("minimapNav", c).apply(); applyMinimapMode()
+                })
+                addView(settingsToggle("Auto go to events",
+                    "Jump the map to fires, disasters and other alerts as they happen.", autoGoto) { c ->
+                    autoGoto = c; prefs.edit().putBoolean("autoGoto", c).apply()
                 })
             }
         }))
