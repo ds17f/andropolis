@@ -100,7 +100,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var panelBar: LinearLayout
     private lateinit var simState: TextView
     private lateinit var overlayState: TextView
-    private var mapContainer: android.widget.FrameLayout = null!!
+    private lateinit var mapContainer: android.widget.FrameLayout
 
     // Road / rail / wire draw straight axis-locked lines when dragged.
     private fun isStraightLineTool(tool: Int) = tool == 6 || tool == 8 || tool == 9
