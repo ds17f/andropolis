@@ -36,6 +36,11 @@ class MainActivity : AppCompatActivity() {
     private val taxRates = intArrayOf(0, 5, 7, 9, 12, 15, 20)
     private var taxIdx = 2   // start at 7%
     private val savePath by lazy { java.io.File(filesDir, "city.cty").absolutePath }
+    private val autosavePath by lazy { java.io.File(filesDir, "autosave.cty").absolutePath }
+    private val prefs by lazy { getSharedPreferences("micropolis", MODE_PRIVATE) }
+    private var cityName: String = "Micropolis"
+    @Volatile private var cityReady = false      // true once a city exists (guard autosave)
+    private var lastAutosaveMs = 0L
     private val snapDir by lazy { java.io.File(filesDir, "undo").apply { mkdirs() } }
     private val history = mutableListOf<String>()   // snapshot file paths, oldest..newest
     private var cursor = -1                          // index of the current live state
@@ -80,6 +85,25 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
+    private fun promptCityName(isFirst: Boolean) {
+        val input = android.widget.EditText(this).apply {
+            setText(if (isFirst) "" else cityName)
+            hint = "Name your city"
+            setSingleLine()
+        }
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(if (isFirst) "Name your city" else "Rename city")
+            .setView(input)
+            .setPositiveButton("OK") { _, _ ->
+                val name = input.text.toString().trim().ifEmpty { "Micropolis" }
+                cityName = name
+                prefs.edit().putString("cityName", name).apply()
+                cityTitle.text = name
+            }
+            .setCancelable(false)
+            .show()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -191,7 +215,15 @@ class MainActivity : AppCompatActivity() {
                 pm.menu.add("Tax rate — ${taxRates[taxIdx]}%")
                 pm.setOnMenuItemClickListener { item ->
                     when (item.title) {
-                        "New city" -> sim.post { MicropolisNative.generateRandomCity(handle) }
+                        "New city" -> {
+                            cityReady = false
+                            sim.post {
+                                MicropolisNative.generateRandomCity(handle)
+                                MicropolisNative.saveCity(handle, autosavePath)   // reset autosave to the new city
+                                cityReady = true
+                                ui.post { promptCityName(isFirst = true) }
+                            }
+                        }
                         "Save city" -> sim.post { MicropolisNative.saveCity(handle, savePath) }
                         "Load city" -> sim.post { MicropolisNative.loadCity(handle, savePath) }
                         "Budget" -> sim.post {
@@ -420,9 +452,17 @@ class MainActivity : AppCompatActivity() {
         sim.post {
             handle = MicropolisNative.create()
             MicropolisNative.init(handle)
-            MicropolisNative.generateRandomCity(handle)
-            // Seed the undo history with the starting city (touch history on main thread).
-            ui.post { commitSnapshot() }
+            val hasSave = java.io.File(autosavePath).exists()
+            if (hasSave) {
+                MicropolisNative.loadCity(handle, autosavePath)
+                cityReady = true
+                ui.post { cityName = prefs.getString("cityName", "Micropolis") ?: "Micropolis"
+                          cityTitle.text = cityName }
+            } else {
+                MicropolisNative.generateRandomCity(handle)
+                cityReady = true
+                ui.post { promptCityName(isFirst = true) }   // name a brand-new city
+            }
         }
 
         // Start tick loop on sim thread
@@ -531,6 +571,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun tickLoop() {
+        if (cityReady && handle != 0L) {
+            val now = android.os.SystemClock.uptimeMillis()
+            if (now - lastAutosaveMs > 30_000L) {
+                lastAutosaveMs = now
+                MicropolisNative.saveCity(handle, autosavePath)
+            }
+        }
         repeat(speedTicks[speed]) { MicropolisNative.simTick(handle) }
         MicropolisNative.copyTiles(handle, buf)
         val tilesCopy = buf.copyOf()
@@ -577,6 +624,11 @@ class MainActivity : AppCompatActivity() {
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("City Evaluation").setMessage(msg)
             .setPositiveButton("OK", null).show()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (cityReady && handle != 0L) sim.post { MicropolisNative.saveCity(handle, autosavePath) }
     }
 
     override fun onDestroy() {
