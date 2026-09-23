@@ -85,7 +85,7 @@ internal fun MainActivity.splitBar(vararg parts: Pair<Int, Int>, height: Int = 1
 
 /** City → Overview: the citizens' poll (approval split and ranked worst problems). */
 internal fun MainActivity.citizenPoll(ev: IntArray, p: IntArray, np: Int): View = LinearLayout(this).apply {
-    orientation = LinearLayout.VERTICAL; setPadding(0, dp(12), 0, 0)
+    orientation = LinearLayout.VERTICAL
     fun muted(t: String, size: Float) = TextView(this@citizenPoll).apply { text = t; setTextColor(0xFF7D8B99.toInt()); textSize = size }
     addView(muted("What citizens say", 11f))
     addView(TextView(this@citizenPoll).apply {
@@ -125,8 +125,8 @@ internal fun MainActivity.showCityPanelUI(b: IntArray, ev: IntArray, crime: Int,
             setTypeface(null, android.graphics.Typeface.BOLD) })
     }
     showPanel("City", listOf(
+        // The classic Evaluation window, split so no tab is taller than the Budget tab.
         PanelTab("Overview", "🏛") {
-            // Evaluation + city-wide stats in one tab.
             LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 addView(row("Class", cityClassNames.getOrElse(ev[2]) { "?" }))
@@ -134,15 +134,15 @@ internal fun MainActivity.showCityPanelUI(b: IntArray, ev: IntArray, crime: Int,
                 addView(row("Score", "${ev[0]}  (Δ ${ev[1]})"))
                 addView(row("Approval", "${ev[6]}%"))
                 addView(row("Assessed value", "$${ev[5]}"))
-                addView(View(this@showCityPanelUI).apply {
-                    setBackgroundColor(0x1FFFFFFF)
-                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1))
-                        .apply { topMargin = dp(8); bottomMargin = dp(4) }
-                })
+            }
+        },
+        PanelTab("Opinion", "🗳") { citizenPoll(ev, p, np) },
+        PanelTab("Conditions", "🌡") {
+            LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
                 addView(statBar("Crime", crime)); addView(statBar("Pollution", poll))
                 addView(statBar("Land value", land)); addView(statBar("Traffic", traffic))
                 addView(statBar("Population density", density))
-                addView(citizenPoll(ev, p, np))
             }
         },
         PanelTab("Budget", "💰") {
