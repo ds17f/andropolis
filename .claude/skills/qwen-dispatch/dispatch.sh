@@ -17,11 +17,12 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-# Default: qwen3-coder-next-32k — a variant of qwen3-coder-next with num_ctx capped
-# at 32768 (created via the Ollama /api/create API). The stock model advertises a
-# 262K context, which makes Ollama allocate a huge KV cache on load and hang the
-# box; 32K is ample for these tasks and loads in seconds. See DESIGN.md.
-MODEL="${QWEN_MODEL:-qwen3-coder-next-32k:latest}"
+# Default: qwen3-coder-next-64k — qwen3-coder-next with num_ctx set to 65536 (made
+# with the Ollama /api/create API). The stock model advertises 262K, which makes
+# Ollama allocate a huge KV cache and hang the box. 32K was too small once big
+# files were attached (tasks 050-053). 64K loads in ~20 s and won the 055 bake-off
+# (see SKILL.md "Model selection").
+MODEL="${QWEN_MODEL:-qwen3-coder-next-64k:latest}"
 PROVIDER="${QWEN_PROVIDER:-ollama}"
 
 PLAN=0; ISOLATE=0

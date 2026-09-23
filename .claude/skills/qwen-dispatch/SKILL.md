@@ -104,8 +104,21 @@ Commit your own work first. qwen is constrained to stage only its in-scope files
 
 ## Model selection
 
-The default is `qwen3-coder-next-32k:latest`: `qwen3-coder-next` with its context
-set to 32K (see `dispatch.sh`). A full context window is the most frequent cause
+The default is `qwen3-coder-next-64k:latest`: `qwen3-coder-next` with its context
+set to 64K (see `dispatch.sh`). A full context window is the most frequent cause
 of bad runs, so keep the prompt small (see step 3). To change the model for one
-run, use `QWEN_MODEL=qwen3.8:27b-mlx`. Do an early **bake-off** on one real
+run, use `QWEN_MODEL=qwen3.8-27b-64k:latest` (also 64K).
+
+**Bake-off, 2026-09-23 (task 055, same spec, isolated branches, run one after the other):**
+
+| | coder-next-64k | qwen3.8-27b-64k |
+|---|---|---|
+| Result | correct, green, 1 attempt | correct, green, 1 attempt |
+| Time | 2 min 56 s | 7 min 7 s |
+| Turns / max input tokens | 20 / 21.8K | 16 / 14.2K |
+| Spec fidelity | code blocks copied exactly; re-indented a whole function it had to touch | changed whitespace in a copied block; smallest possible edit |
+| Speed (generation) | ~75 tok/s | ~51 tok/s |
+
+Both needed no review fixes. coder-next is 2.4× faster, so it stays the default.
+qwen3.8 is a good second choice when a task needs careful minimal edits. Do an early **bake-off** on one real
 spec with both models. Let the diffs decide. Read `DESIGN.md` section 6.
