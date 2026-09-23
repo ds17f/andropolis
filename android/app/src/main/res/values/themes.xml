@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark, amber-accented Material 3 theme matching the UI mockup. -->
+    <style name="Theme.Micropolis" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/amber</item>
+        <item name="colorOnPrimary">@color/amber_on</item>
+        <item name="colorSecondary">@color/amber</item>
+        <item name="colorOnSecondary">@color/amber_on</item>
+        <item name="android:colorBackground">@color/surface_dark</item>
+        <item name="colorSurface">@color/surface_dark</item>
+        <item name="colorSurfaceContainer">@color/surface_dark_2</item>
+        <item name="colorOnSurface">@color/on_surface</item>
+        <item name="colorOnSurfaceVariant">@color/on_surface_muted</item>
+    </style>
+</resources>

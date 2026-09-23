@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="amber">#F5A623</color>
+    <color name="amber_on">#1A1207</color>
+    <color name="surface_dark">#12161C</color>
+    <color name="surface_dark_2">#171C23</color>
+    <color name="on_surface">#EEF2F6</color>
+    <color name="on_surface_muted">#9AA7B4</color>
+</resources>

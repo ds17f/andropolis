@@ -5,7 +5,7 @@
         android:allowBackup="true"
         android:label="Micropolis Port"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.NoActionBar">
+        android:theme="@style/Theme.Micropolis">
         <activity
             android:name=".MainActivity"
             android:exported="true">
