@@ -21,7 +21,8 @@ list(TRANSFORM ENGINE_SOURCES APPEND .cpp)
 
 add_library(micropolis_engine STATIC
     ${ENGINE_SOURCES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/micropolis_c.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/micropolis_c.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/micropolis_seeded.cpp)
 target_include_directories(micropolis_engine PUBLIC
     ${ENGINE_SRC_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -35,4 +36,7 @@ if(NOT ANDROID)
     add_executable(micropolis_abi_smoke ${CMAKE_CURRENT_SOURCE_DIR}/test/abi_smoke.c)
     target_link_libraries(micropolis_abi_smoke PRIVATE micropolis_engine)
     set_target_properties(micropolis_abi_smoke PROPERTIES LINKER_LANGUAGE CXX)
+    add_executable(micropolis_determinism ${CMAKE_CURRENT_SOURCE_DIR}/test/determinism.c)
+    target_link_libraries(micropolis_determinism PRIVATE micropolis_engine)
+    set_target_properties(micropolis_determinism PROPERTIES LINKER_LANGUAGE CXX)
 endif()

@@ -40,6 +40,9 @@ static_assert(MICROPOLIS_TOOL_OK == TOOLRESULT_OK, "ToolResult enum mismatch");
 // Opaque handle type wrapping the Micropolis engine and a null callback.
 // Both are heap-allocated because Micropolis::setCallback(NULL, ...)
 // in the destructor will delete the callback.
+// C++ helper (micropolis_seeded.cpp): load with a chosen PRNG state for the post-load init.
+bool micropolisSeededLoad(Micropolis *sim, const std::string &path, UQuad rng);
+
 struct MicropolisEngine {
     Micropolis *sim;
     QueueCallback *callback;   // captures engine events into a ring buffer
@@ -58,7 +61,13 @@ MicropolisEngine *micropolis_create(void) {
     // constructing so every member — including `callback` — starts at 0.
     void *mem = ::operator new(sizeof(Micropolis));
     std::memset(mem, 0, sizeof(Micropolis));
+    // The memset is a store before the object's lifetime starts, so an optimizing
+    // compiler may drop it as dead (GCC -O2 did: callback and mapBase stayed
+    // garbage and a second engine crashed). This barrier says the memory may be
+    // read here, so the zeroing stays.
+    asm volatile("" : : "r"(mem) : "memory");
     e->sim = new (mem) Micropolis();
+    e->sim->callback = nullptr;   // belt and braces for setCallback() below
     e->sim->setCallback(e->callback, emscripten::val());
     return e;
 }
@@ -339,6 +348,18 @@ void micropolis_set_enable_disasters(MicropolisEngine *e, int on) {
 void micropolis_set_auto_budget(MicropolisEngine *e, int on) {
     if (!e) return;
     e->sim->setAutoBudget(on != 0);
+}
+
+int micropolis_load_city_seeded(MicropolisEngine *e, const char *path, long long rng) {
+    return (e && path && micropolisSeededLoad(e->sim, std::string(path), (UQuad) rng)) ? 1 : 0;
+}
+
+long long micropolis_get_rng(const MicropolisEngine *e) {
+    return e ? (long long) e->sim->nextRandom : 0;
+}
+
+void micropolis_set_rng(MicropolisEngine *e, long long state) {
+    if (e) e->sim->nextRandom = (UQuad) state;
 }
 
 int micropolis_poll_event(MicropolisEngine *e, MicropolisEvent *out) {

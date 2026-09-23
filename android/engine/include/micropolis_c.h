@@ -271,6 +271,22 @@ typedef struct MicropolisEvent {
  */
 int micropolis_poll_event(MicropolisEngine *e, MicropolisEvent *out);
 
+/*
+ * Engine PRNG state (the single LCG behind every random decision). The .cty
+ * format does not store it, so background play snapshots it next to the save:
+ * fresh engine -> init -> load(S) -> set_rng(r) -> tick N times is then
+ * bit-identical on every run (DESIGN.md 12.5; test/determinism.c).
+ */
+long long micropolis_get_rng(const MicropolisEngine *e);
+void      micropolis_set_rng(MicropolisEngine *e, long long state);
+
+/*
+ * Load a city for the background timeline: like micropolis_load_city, but the
+ * post-load simulation init uses PRNG state `rng` instead of a clock seed, so
+ * load_city_seeded(S, r) + N ticks is identical on every run. Returns 1 on success.
+ */
+int micropolis_load_city_seeded(MicropolisEngine *e, const char *path, long long rng);
+
 #ifdef __cplusplus
 }
 #endif
