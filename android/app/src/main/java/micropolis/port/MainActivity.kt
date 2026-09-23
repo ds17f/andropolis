@@ -66,7 +66,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var bottom: LinearLayout
     private lateinit var toolPill: LinearLayout
     private lateinit var undoBtn: Button
-    private lateinit var redoBtn: Button
+
+    // Road / rail / wire draw straight axis-locked lines when dragged.
+    private fun isStraightLineTool(tool: Int) = tool == 6 || tool == 8 || tool == 9
     private val toolCategories = linkedMapOf(
         "Zones" to listOf(ToolItem("Residential", 0, R.drawable.ic_residential), ToolItem("Commercial", 1, R.drawable.ic_commercial), ToolItem("Industrial", 2, R.drawable.ic_industrial), ToolItem("Park", 11, R.drawable.ic_park)),
         "Transport" to listOf(ToolItem("Road", 9, R.drawable.ic_road), ToolItem("Rail", 8, R.drawable.ic_rail), ToolItem("Wire", 6, R.drawable.ic_wire), ToolItem("Bulldozer", 7, R.drawable.ic_bulldozer)),
@@ -207,6 +209,7 @@ class MainActivity : AppCompatActivity() {
             setTextColor(0xFFEEF2F6.toInt())
             setOnClickListener {
                 val pm = PopupMenu(this@MainActivity, it as Button)
+                pm.menu.add("Redo").isEnabled = cursor < history.size - 1
                 pm.menu.add("New city")
                 pm.menu.add("Save city")
                 pm.menu.add("Load city")
@@ -215,6 +218,7 @@ class MainActivity : AppCompatActivity() {
                 pm.menu.add("Tax rate — ${taxRates[taxIdx]}%")
                 pm.setOnMenuItemClickListener { item ->
                     when (item.title) {
+                        "Redo" -> redo()
                         "New city" -> {
                             cityReady = false
                             sim.post {
@@ -242,11 +246,9 @@ class MainActivity : AppCompatActivity() {
                             taxIdx = (taxIdx + 1) % taxRates.size
                             val t = taxRates[taxIdx]
                             sim.post { MicropolisNative.setCityTax(handle, t) }
-                            true
-                        } else {
-                            false
                         }
                     }
+                    true
                 }
                 pm.show()
             }
@@ -425,22 +427,12 @@ class MainActivity : AppCompatActivity() {
         }
         bottom.addView(undoBtn, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { setMargins(dp(8), 0, 0, 0) })
 
-        redoBtn = Button(this).apply {
-            text = "↷"
-            background = roundedBg(0xFF1A222A.toInt(), 18)
-            setTextColor(0xFFEEF2F6.toInt())
-            stateListAnimator = null
-            setTextSize(18f)
-            setPadding(dp(14), dp(8), dp(14), dp(8))
-            setOnClickListener { redo() }
-        }
-        bottom.addView(redoBtn, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { setMargins(dp(8), 0, 0, 0) })
-
         root.addView(bottom)
 
         setContentView(root)
 
         mapView.toolFootprint = footprintOf(currentTool)
+        mapView.straightLineTool = isStraightLineTool(currentTool)
         updatePill()
         updateUndoButtons()
 
@@ -484,6 +476,7 @@ class MainActivity : AppCompatActivity() {
         pillIcon.setImageResource(ti.icon)
         pillName.text = ti.label
         mapView.toolFootprint = footprintOf(currentTool)
+        mapView.straightLineTool = isStraightLineTool(currentTool)
     }
 
     private fun newSnapPath(): String { snapSeq++; return java.io.File(snapDir, "s$snapSeq.cty").absolutePath }
@@ -510,9 +503,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateUndoButtons() {
         val canUndo = cursor > 0
-        val canRedo = cursor < history.size - 1
         undoBtn.isEnabled = canUndo; undoBtn.alpha = if (canUndo) 1f else 0.35f
-        redoBtn.isEnabled = canRedo; redoBtn.alpha = if (canRedo) 1f else 0.35f
     }
 
     /** Drop all undo snapshots (used when starting a fresh city). */

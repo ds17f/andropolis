@@ -45,7 +45,18 @@ class MapView(context: Context) : View(context) {
     private var lastFocusY = 0f
     private var lastBuiltTile: Pair<Int, Int>? = null
     private var built = false
-    
+
+    // Build-gesture state. The first touch is DEFERRED: a lone finger that turns into a
+    // two-finger pan must not lay a tile, so a tap builds on UP and a drag builds on MOVE.
+    private var pendingDown = false        // one finger down, not yet built (tap vs pan undecided)
+    private var downX = 0f
+    private var downY = 0f
+    private var anchorX = -1               // stroke start tile (straight-line anchor)
+    private var anchorY = -1
+    private var axisLock = 0               // 0 undecided, 1 horizontal, 2 vertical
+    private val strokeBuilt = HashSet<Long>()
+    var straightLineTool = false           // set by MainActivity for road/rail/wire
+
     private val scaleDetector = ScaleGestureDetector(context, ScaleListener())
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -66,19 +77,26 @@ class MapView(context: Context) : View(context) {
             MotionEvent.ACTION_DOWN -> {
                 built = false
                 lastBuiltTile = null
+                strokeBuilt.clear()
+                axisLock = 0
                 if (toolFootprint > 1) {
-                    val tileX = tileXat(event.x)
-                    val tileY = tileYat(event.y)
-                    ghostX = tileX
-                    ghostY = tileY
+                    ghostX = tileXat(event.x)
+                    ghostY = tileYat(event.y)
+                    pendingDown = false
                     invalidate()
                 } else {
-                    buildAt(event.x, event.y)
+                    // Defer: don't build yet — this may become a two-finger pan.
+                    pendingDown = true
+                    downX = event.x
+                    downY = event.y
+                    anchorX = tileXat(event.x)
+                    anchorY = tileYat(event.y)
                 }
             }
             MotionEvent.ACTION_POINTER_DOWN -> {
                 built = false
                 panning = true
+                pendingDown = false      // cancel the tentative tap: no stray tile
                 lastBuiltTile = null
                 ghostX = -1
                 ghostY = -1
@@ -98,13 +116,24 @@ class MapView(context: Context) : View(context) {
                     invalidate()
                 } else if (!panning) {
                     if (toolFootprint > 1) {
-                        val tileX = tileXat(event.x)
-                        val tileY = tileYat(event.y)
-                        ghostX = tileX
-                        ghostY = tileY
+                        ghostX = tileXat(event.x)
+                        ghostY = tileYat(event.y)
                         invalidate()
                     } else {
-                        buildAt(event.x, event.y)
+                        pendingDown = false      // committed to a drag
+                        val curX = tileXat(event.x)
+                        val curY = tileYat(event.y)
+                        if (straightLineTool) {
+                            // Lock to the dominant axis on first movement; keep it straight.
+                            if (axisLock == 0 && (curX != anchorX || curY != anchorY)) {
+                                axisLock = if (kotlin.math.abs(curX - anchorX) >= kotlin.math.abs(curY - anchorY)) 1 else 2
+                            }
+                            val endX = if (axisLock == 2) anchorX else curX
+                            val endY = if (axisLock == 1) anchorY else curY
+                            buildLine(anchorX, anchorY, endX, endY)
+                        } else {
+                            buildAt(event.x, event.y)
+                        }
                     }
                 }
             }
@@ -112,11 +141,17 @@ class MapView(context: Context) : View(context) {
                 if (toolFootprint > 1 && !panning && ghostX >= 0) {
                     onTileTap?.invoke(ghostX, ghostY)
                     built = true
+                } else if (pendingDown && !panning && event.actionMasked == MotionEvent.ACTION_UP) {
+                    // A tap on a line/continuous tool: build the single tile under the finger.
+                    buildTile(tileXat(downX), tileYat(downY))
                 }
                 ghostX = -1
                 ghostY = -1
                 panning = false
+                pendingDown = false
+                axisLock = 0
                 lastBuiltTile = null
+                strokeBuilt.clear()
                 onStrokeEnd?.invoke(built)
                 performClick()
             }
@@ -143,6 +178,28 @@ class MapView(context: Context) : View(context) {
             lastBuiltTile = Pair(tileX, tileY)
             onTileTap?.invoke(tileX, tileY)
             built = true
+        }
+    }
+
+    /** Build one tile at most once per stroke (dedup avoids re-posting doTool while dragging). */
+    private fun buildTile(tx: Int, ty: Int) {
+        val key = ty.toLong() * cols + tx
+        if (strokeBuilt.add(key)) {
+            onTileTap?.invoke(tx, ty)
+            built = true
+        }
+    }
+
+    /** Build an axis-aligned straight line of tiles from (x0,y0) to (x1,y1). */
+    private fun buildLine(x0: Int, y0: Int, x1: Int, y1: Int) {
+        if (y0 == y1) {
+            val step = if (x1 >= x0) 1 else -1
+            var x = x0
+            while (true) { buildTile(x, y0); if (x == x1) break; x += step }
+        } else {
+            val step = if (y1 >= y0) 1 else -1
+            var y = y0
+            while (true) { buildTile(x0, y); if (y == y1) break; y += step }
         }
     }
 
