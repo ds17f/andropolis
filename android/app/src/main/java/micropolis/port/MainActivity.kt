@@ -93,7 +93,7 @@ class MainActivity : AppCompatActivity() {
     private fun costOf(tool: Int) = toolCosts.getOrElse(tool) { 0 }
     // history graph colors and labels (res, com, ind, money, crime, poll)
     private val histColors = intArrayOf(0xFF4CAF50.toInt(), 0xFF42A5F5.toInt(), 0xFFF5A623.toInt(),
-        0xFF66BB6A.toInt(), 0xFFE5533D.toInt(), 0xFF9C6ADE.toInt())
+        0xFFEEF2F6.toInt(), 0xFFE5533D.toInt(), 0xFF9C6ADE.toInt())   // money = white (distinct from residential green)
     private val histNames = arrayOf("Residential", "Commercial", "Industrial", "Money", "Crime", "Pollution")
     private lateinit var topBar: LinearLayout
     private lateinit var cityTitle: android.widget.TextView
@@ -286,9 +286,14 @@ class MainActivity : AppCompatActivity() {
                 col.addView(toggle, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(8) })
                 col.addView(graph)
                 // legend
-                val legend = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(10), 0, 0) }
+                // Compact 3-column legend.
+                val legend = android.widget.GridLayout(this).apply { columnCount = 3; setPadding(0, dp(10), 0, 0) }
                 for (i in histNames.indices) {
                     legend.addView(LinearLayout(this).apply {
+                        layoutParams = android.widget.GridLayout.LayoutParams().apply {
+                            width = 0
+                            columnSpec = android.widget.GridLayout.spec(android.widget.GridLayout.UNDEFINED, 1f)
+                        }
                         orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL; setPadding(0, dp(3), 0, dp(3))
                         addView(View(this@MainActivity).apply { background = roundedBg(histColors[i], 3)
                             layoutParams = LinearLayout.LayoutParams(dp(14), dp(14)).apply { rightMargin = dp(8) } })
@@ -433,18 +438,30 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             tabs.forEachIndexed { i, t ->
-                val chip = TextView(this).apply {
-                    text = if (t.glyph.isEmpty()) t.title else "${t.glyph}  ${t.title}"
-                    textSize = 13f
-                    setPadding(dp(14), dp(8), dp(14), dp(8))
-                    layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                    ).apply { rightMargin = dp(8) }
+                // Equal-width chips, icon stacked over the title; the text auto-sizes to fit
+                // so titles never wrap or truncate at large system font scales.
+                val chip = androidx.appcompat.widget.AppCompatTextView(this).apply {
+                    text = if (t.glyph.isEmpty()) t.title else "${t.glyph}\n${t.title}"
+                    gravity = android.view.Gravity.CENTER
+                    maxLines = if (t.glyph.isEmpty()) 1 else 2
+                    setPadding(dp(4), dp(6), dp(4), dp(6))
+                    layoutParams = LinearLayout.LayoutParams(0, dp(if (t.glyph.isEmpty()) 40 else 58), 1f)
+                        .apply { setMargins(dp(3), 0, dp(3), 0) }
                     setOnClickListener { select(i) }
                 }
+                androidx.core.widget.TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(
+                    chip, 9, 14, 1, android.util.TypedValue.COMPLEX_UNIT_SP)
                 chips.add(chip)
                 tabRow.addView(chip)
+            }
+            // After layout, give every chip the smallest auto-sized text so they match.
+            tabRow.post {
+                val minPx = chips.minOf { it.textSize }
+                chips.forEach {
+                    androidx.core.widget.TextViewCompat.setAutoSizeTextTypeWithDefaults(
+                        it, androidx.core.widget.TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE)
+                    it.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, minPx)
+                }
             }
             col.addView(tabRow)
             col.addView(content)
