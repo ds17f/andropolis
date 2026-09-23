@@ -6,7 +6,6 @@ import android.os.HandlerThread
 import android.os.Looper
 import android.view.View
 import android.widget.Button
-import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupMenu
@@ -51,6 +50,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var scoreValue: android.widget.TextView
     private lateinit var pillIcon: ImageView
     private lateinit var pillName: TextView
+    private lateinit var bottom: LinearLayout
+    private lateinit var ctrlRow: LinearLayout
+    private lateinit var segMove: TextView
+    private lateinit var segBuild: TextView
+    private lateinit var previewBtn: Button
+    private lateinit var confirmBtn: Button
+    private lateinit var cancelBtn: Button
     private val toolCategories = linkedMapOf(
         "Zones" to listOf(ToolItem("Residential", 0, R.drawable.ic_residential), ToolItem("Commercial", 1, R.drawable.ic_commercial), ToolItem("Industrial", 2, R.drawable.ic_industrial), ToolItem("Park", 11, R.drawable.ic_park)),
         "Transport" to listOf(ToolItem("Road", 9, R.drawable.ic_road), ToolItem("Rail", 8, R.drawable.ic_rail), ToolItem("Wire", 6, R.drawable.ic_wire), ToolItem("Bulldozer", 7, R.drawable.ic_bulldozer)),
@@ -155,6 +161,7 @@ class MainActivity : AppCompatActivity() {
                 pm.menu.add("Load city")
                 pm.menu.add("Budget")
                 pm.menu.add("City evaluation")
+                pm.menu.add("Tax rate — ${taxRates[taxIdx]}%")
                 pm.setOnMenuItemClickListener { item ->
                     when (item.title) {
                         "New city" -> sim.post { MicropolisNative.generateRandomCity(handle) }
@@ -168,8 +175,15 @@ class MainActivity : AppCompatActivity() {
                             val ev = IntArray(7); MicropolisNative.getEvaluation(handle, ev)
                             ui.post { showEvalDialog(ev) }
                         }
+                        else -> if (item.title.toString().startsWith("Tax")) {
+                            taxIdx = (taxIdx + 1) % taxRates.size
+                            val t = taxRates[taxIdx]
+                            sim.post { MicropolisNative.setCityTax(handle, t) }
+                            true
+                        } else {
+                            false
+                        }
                     }
-                    true
                 }
                 pm.show()
             }
@@ -274,97 +288,154 @@ class MainActivity : AppCompatActivity() {
             )
         )
 
-        // Tool palette pill
-        val pillLayout = LinearLayout(this).apply {
+        // ===== Bottom controls =====
+        bottom = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(0xFFEE12161C.toInt())
+            setPadding(12, 10, 12, 14)
+        }
+
+        // Contextual control row (Move/Build toggle, Preview, Confirm/Cancel)
+        ctrlRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            setBackgroundColor(0xEE12161C.toInt())
-            setPadding(12, 8, 12, 8)
+            gravity = android.view.Gravity.CENTER
+        }
+
+        // Move/Build segmented toggle
+        val modeContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setBackgroundColor(0xFF1A222A.toInt())
+            setPadding(4, 4, 4, 4)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
-                56
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        segMove = TextView(this).apply {
+            text = "Move"
+            setTextColor(0xFF9AA7B4.toInt())
+            setTextSize(14f)
+            setTextIsSelectable(false)
+            setPadding(16, 12, 16, 12)
+            setOnClickListener {
+                setBuildMode(false)
+            }
+        }
+        modeContainer.addView(segMove)
+
+        segBuild = TextView(this).apply {
+            text = "Build"
+            setTextColor(0xFF1A1207.toInt())
+            setTextSize(14f)
+            setTextIsSelectable(false)
+            setBackgroundColor(0xFFF5A623.toInt())
+            setPadding(16, 12, 16, 12)
+            setOnClickListener {
+                setBuildMode(true)
+            }
+        }
+        modeContainer.addView(segBuild)
+
+        ctrlRow.addView(modeContainer)
+
+        // Preview button
+        previewBtn = Button(this).apply {
+            text = "Preview: Off"
+            setOnClickListener {
+                previewMode = !previewMode
+                previewBtn.text = if (previewMode) "Preview: On" else "Preview: Off"
+                updatePendingBar()
+            }
+        }
+        ctrlRow.addView(previewBtn)
+
+        // Confirm button (hidden by default)
+        confirmBtn = Button(this).apply {
+            text = "Confirm"
+            visibility = View.GONE
+            setOnClickListener {
+                val snapshot = pending.toList()
+                pending.clear()
+                mapView.setPendingTiles(emptyList())
+                sim.post {
+                    for (t in snapshot) {
+                        MicropolisNative.doTool(handle, t.third, t.first, t.second)
+                    }
+                }
+                updatePendingBar()
+            }
+        }
+        ctrlRow.addView(confirmBtn)
+
+        // Cancel button (hidden by default)
+        cancelBtn = Button(this).apply {
+            text = "Cancel"
+            visibility = View.GONE
+            setOnClickListener {
+                pending.clear()
+                mapView.setPendingTiles(emptyList())
+                updatePendingBar()
+            }
+        }
+        ctrlRow.addView(cancelBtn)
+
+        bottom.addView(ctrlRow)
+
+        // Tool pill (prominent, styled like the mockup)
+        val pillLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setBackgroundColor(0x0FFFFFFF.toInt())
+            setPadding(12, 12, 12, 12)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                (56 * resources.displayMetrics.density).toInt()
             )
             setOnClickListener { openPalette() }
         }
 
         pillIcon = ImageView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(28, 28)
+            layoutParams = LinearLayout.LayoutParams(40, 40)
             imageTintList = android.content.res.ColorStateList.valueOf(0xFFF5A623.toInt())
         }
         pillLayout.addView(pillIcon)
 
+        val pillInfo = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            setPadding(12, 0, 12, 0)
+        }
+
+        val pillLabel = TextView(this).apply {
+            text = "Current tool"
+            setTextColor(0xFF9AA7B4.toInt())
+            setTextSize(11f)
+        }
+        pillInfo.addView(pillLabel)
+
         pillName = TextView(this).apply {
             text = ""
             setTextColor(0xFFEEF2F6.toInt())
-            setTextSize(13f)
-            setPadding(12, 0, 12, 0)
+            setTextSize(16f)
+            setTypeface(null, android.graphics.Typeface.BOLD)
         }
-        pillLayout.addView(pillName)
+        pillInfo.addView(pillName)
+
+        pillLayout.addView(pillInfo)
 
         val pillArrow = TextView(this).apply {
             text = "▲"
             setTextColor(0xFF7D8B99.toInt())
-            setTextSize(10f)
+            setTextSize(12f)
         }
         pillLayout.addView(pillArrow)
 
-        val barLayout = LinearLayout(this)
-        barLayout.orientation = LinearLayout.HORIZONTAL
+        bottom.addView(pillLayout)
 
-        // Mode toggle button (first in bar)
-        val modeButton = Button(this).apply {
-            text = "Build"
-            setOnClickListener {
-                buildMode = !buildMode
-                mapView.buildEnabled = buildMode
-                text = if (buildMode) "Build" else "Move"
-            }
-        }
-        barLayout.addView(modeButton)
-
-        val taxBtn = Button(this).apply {
-            text = "Tax: ${taxRates[taxIdx]}%"
-            setOnClickListener {
-                taxIdx = (taxIdx + 1) % taxRates.size
-                text = "Tax: ${taxRates[taxIdx]}%"
-                val t = taxRates[taxIdx]
-                sim.post { MicropolisNative.setCityTax(handle, t) }
-            }
-        }
-        barLayout.addView(taxBtn)
-
-        val previewBtn = Button(this).apply {
-            text = "Preview: Off"
-            setOnClickListener {
-                previewMode = !previewMode
-                text = if (previewMode) "Preview: On" else "Preview: Off"
-            }
-        }
-        val confirmBtn = Button(this).apply {
-            text = "Confirm"
-            setOnClickListener {
-                val snapshot = pending.toList()
-                pending.clear(); mapView.setPendingTiles(emptyList())
-                sim.post { for (t in snapshot) MicropolisNative.doTool(handle, t.third, t.first, t.second) }
-            }
-        }
-        val cancelBtn = Button(this).apply {
-            text = "Cancel"
-            setOnClickListener { pending.clear(); mapView.setPendingTiles(emptyList()) }
-        }
-        barLayout.addView(previewBtn)
-        barLayout.addView(confirmBtn)
-        barLayout.addView(cancelBtn)
-
-        val scroll = HorizontalScrollView(this)
-        scroll.layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        )
-        scroll.addView(barLayout)
-        root.addView(scroll)
-
-        // Add pill layout after barLayout
-        root.addView(pillLayout)
+        root.addView(bottom)
 
         setContentView(root)
 
@@ -421,6 +492,37 @@ class MainActivity : AppCompatActivity() {
         scroll.addView(col)
         sheet.setContentView(scroll)
         sheet.show()
+    }
+
+    private fun setBuildMode(mode: Boolean) {
+        buildMode = mode
+        mapView.buildEnabled = buildMode
+        styleModeSegments()
+    }
+
+    private fun styleModeSegments() {
+        if (buildMode) {
+            segBuild.setTextColor(0xFF1A1207.toInt())
+            segBuild.setBackgroundColor(0xFFF5A623.toInt())
+            segMove.setTextColor(0xFF9AA7B4.toInt())
+            segMove.setBackgroundColor(0xFF1A222A.toInt())
+        } else {
+            segMove.setTextColor(0xFF1A1207.toInt())
+            segMove.setBackgroundColor(0xFFF5A623.toInt())
+            segBuild.setTextColor(0xFF9AA7B4.toInt())
+            segBuild.setBackgroundColor(0xFF1A222A.toInt())
+        }
+    }
+
+    private fun updatePendingBar() {
+        if (previewMode && pending.isNotEmpty()) {
+            confirmBtn.visibility = View.VISIBLE
+            cancelBtn.visibility = View.VISIBLE
+            confirmBtn.text = "Confirm (${pending.size})"
+        } else {
+            confirmBtn.visibility = View.GONE
+            cancelBtn.visibility = View.GONE
+        }
     }
 
     private fun buildToolCard(ti: ToolItem, sheet: com.google.android.material.bottomsheet.BottomSheetDialog): View {
