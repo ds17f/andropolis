@@ -12,10 +12,14 @@ object BackgroundPrefs {
     /** Event groups: id (used in pref keys), title, description, default notify, default pause. */
     class Group(val id: String, val title: String, val desc: String, val notify: Boolean, val pause: Boolean)
     val GROUPS = listOf(
-        Group("disasters",  "Disasters",      "Fire, flood, tornado, earthquake, monster, meltdown, crashes.", true, true),
-        Group("newYear",    "New year",       "The annual report is ready.",                                    true, false),
-        Group("problems",   "City problems",  "Brownouts, traffic jams, high crime or pollution, low funds.",   true, false),
-        Group("milestones", "Milestones",     "Your city reaches a new size: town, city, capital, …",          true, false),
+        Group("disasters",  "Natural disasters", "Fire, flood, tornado, earthquake, monster.",                 true, true),
+        Group("accidents",  "Accidents",         "Plane, ship, train or helicopter crash; explosion; meltdown; riots.", true, true),
+        Group("newYear",    "New year",          "The annual report is ready.",                                 true, false),
+        Group("pollution",  "Pollution & crime", "Pollution or crime is very high.",                            true, false),
+        Group("traffic",    "Traffic",           "Traffic jams.",                                               true, false),
+        Group("power",      "Power",             "Blackouts or brownouts: build more power.",                   true, false),
+        Group("money",      "Money & jobs",      "Taxes too high, unemployment, or the city is broke.",         true, false),
+        Group("milestones", "Milestones",        "Your city reaches a new size: town, city, capital, …",       true, false),
     )
 
     fun notifyKey(g: Group) = "bgNotify_${g.id}"
