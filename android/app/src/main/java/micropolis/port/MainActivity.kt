@@ -31,10 +31,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var ui: Handler
     private lateinit var sfx: SoundFx
     private val statsBuf = IntArray(10)
-    @Volatile private var speed = 2   // 0=Pause 1=Slow 2=Med 3=Fast
+    @Volatile private var speed = 2   // 0=Pause 1=Slow 2=Med 3=Fast 4=Turbo
     private var lastRunSpeed = 2
-    private val speedNames = arrayOf("Pause", "Slow", "Med", "Fast")
-    private val speedTicks = intArrayOf(0, 2, 8, 20)
+    private val speedNames = arrayOf("Pause", "Slow", "Med", "Fast", "Turbo")
+    private val engineSpeed = intArrayOf(0, 1, 2, 3, 3)   // engine frame-skip mode per UI speed
+    private val ticksPerFrame = intArrayOf(0, 1, 1, 1, 7) // Turbo ≈ 210 steps/s like the old Fast
     private val taxRates = intArrayOf(0, 5, 7, 9, 12, 15, 20)
     private var taxIdx = 2   // start at 7%
     private val savePath by lazy { java.io.File(filesDir, "city.cty").absolutePath }
@@ -577,6 +578,14 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Pre-043 saves lived in the single slot filesDir/city.cty; copy it into cities/ once.
+        val legacy = java.io.File(filesDir, "city.cty")
+        if (legacy.exists() && !prefs.getBoolean("migratedLegacySave", false)) {
+            val dest = cityFile("Saved city")
+            if (!dest.exists()) legacy.copyTo(dest)
+            prefs.edit().putBoolean("migratedLegacySave", true).apply()
+        }
 
         // Create sim thread with handler
         val simThread = HandlerThread("sim")
@@ -1171,8 +1180,8 @@ class MainActivity : AppCompatActivity() {
     private fun showSimulationPanel() {
         showPanel("Simulation", listOf(
             PanelTab("Speed") {
-                val glyphs = arrayOf("⏸", "▶", "▶▶", "⏩")
-                val grid = android.widget.GridLayout(this).apply { columnCount = 4 }
+                val glyphs = arrayOf("⏸", "▶", "▶▶", "⏩", "🚀")
+                val grid = android.widget.GridLayout(this).apply { columnCount = 5 }
                 val handles = ArrayList<CardHandle>()
                 fun select(sel: Int) { handles.forEachIndexed { i, h -> h.setSelected(i == sel) } }
                 for (i in speedNames.indices) {
@@ -1224,7 +1233,11 @@ class MainActivity : AppCompatActivity() {
                 MicropolisNative.saveCity(handle, autosavePath)
             }
         }
-        repeat(speedTicks[speed]) { MicropolisNative.simTick(handle) }
+        // Set the engine's frame-skip mode every frame: loads/undo/generate reset it to Fast,
+        // and this runs on the sim thread after them. Pause = 0 ticks, engine stays running.
+        val sp = speed
+        if (handle != 0L) MicropolisNative.setSpeed(handle, maxOf(1, engineSpeed[sp]))
+        repeat(ticksPerFrame[sp]) { MicropolisNative.simTick(handle) }
         MicropolisNative.copyTiles(handle, buf)
         val tilesCopy = buf.copyOf()
         ui.post { mapView.update(tilesCopy); minimap.update(tilesCopy) }
@@ -1280,7 +1293,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-        sim.postDelayed({ tickLoop() }, 100)
+        sim.postDelayed({ tickLoop() }, 33)   // 30 fps; the engine frame-skips per speed
     }
 
     private fun showBudgetDialog(b: IntArray) {

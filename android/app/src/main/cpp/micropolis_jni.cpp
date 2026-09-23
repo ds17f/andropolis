@@ -119,6 +119,11 @@ Java_micropolis_port_MicropolisNative_setCityTax(JNIEnv *, jobject, jlong h, jin
     micropolis_set_city_tax(eng(h), tax);
 }
 
+JNIEXPORT void JNICALL
+Java_micropolis_port_MicropolisNative_setSpeed(JNIEnv *, jobject, jlong h, jint speed) {
+    micropolis_set_speed(eng(h), speed);
+}
+
 JNIEXPORT jint JNICALL
 Java_micropolis_port_MicropolisNative_copyOverlay(JNIEnv *env, jobject, jlong h, jint overlay, jbyteArray dst) {
     jsize len = env->GetArrayLength(dst);

@@ -46,6 +46,9 @@ object MicropolisNative {
     /** Set the city tax rate (percent, 0..20). */
     external fun setCityTax(handle: Long, tax: Int)
 
+    /** Set the engine frame-skip mode: 1=Slow (every 5th tick), 2=Medium (every 3rd), 3=Fast (every tick). */
+    external fun setSpeed(handle: Long, speed: Int)
+
     /**
      * Fill dst (ByteArray, len >= 12000) column-major dst[x*H+y] with 0..255
      * intensity for the overlay (see MicropolisOverlay). Returns tiles written.
