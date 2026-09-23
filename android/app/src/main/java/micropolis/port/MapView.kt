@@ -34,8 +34,6 @@ class MapView(context: Context) : View(context) {
     private var panY = 0f
     private var tileSize = 0f
     private var lastBuiltTile: Pair<Int, Int>? = null
-    private var pendingTiles: List<Pair<Int, Int>> = emptyList()
-    private val overlayPaint = Paint().apply { color = 0x88FFEB3B.toInt() } // translucent yellow
     
     private val scaleDetector = ScaleGestureDetector(context, ScaleListener())
     private val gestureListener = GestureListener()
@@ -85,8 +83,6 @@ class MapView(context: Context) : View(context) {
         }
     }
 
-    fun setPendingTiles(tiles: List<Pair<Int, Int>>) { pendingTiles = tiles; invalidate() }
-
     private fun convertToTile(e: MotionEvent): Pair<Int, Int> {
         val worldX = (e.x - panX) / scale
         val worldY = (e.y - panY) / scale
@@ -121,11 +117,6 @@ class MapView(context: Context) : View(context) {
                 dstRect.set(x * tileSize, y * tileSize, (x + 1) * tileSize, (y + 1) * tileSize)
                 canvas.drawBitmap(atlas, srcRect, dstRect, paint)
             }
-        }
-        
-        for ((px, py) in pendingTiles) {
-            canvas.drawRect(px * tileSize, py * tileSize,
-                            (px + 1) * tileSize, (py + 1) * tileSize, overlayPaint)
         }
         
         canvas.restore()

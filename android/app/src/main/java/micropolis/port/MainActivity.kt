@@ -36,8 +36,8 @@ class MainActivity : AppCompatActivity() {
     private val taxRates = intArrayOf(0, 5, 7, 9, 12, 15, 20)
     private var taxIdx = 2   // start at 7%
     private val savePath by lazy { java.io.File(filesDir, "city.cty").absolutePath }
-    private var previewMode = false
-    private val pending = mutableListOf<Triple<Int, Int, Int>>()  // x, y, tool
+    private var trialActive = false
+    private val trialPath by lazy { java.io.File(filesDir, "trial.cty").absolutePath }
     private lateinit var topBar: LinearLayout
     private lateinit var cityTitle: android.widget.TextView
     private lateinit var subtitle: android.widget.TextView
@@ -56,9 +56,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var ctrlRow: LinearLayout
     private lateinit var segMove: TextView
     private lateinit var segBuild: TextView
-    private lateinit var previewBtn: Button
-    private lateinit var confirmBtn: Button
-    private lateinit var cancelBtn: Button
+    private lateinit var trialBtn: Button
+    private lateinit var keepBtn: Button
+    private lateinit var revertBtn: Button
     private val toolCategories = linkedMapOf(
         "Zones" to listOf(ToolItem("Residential", 0, R.drawable.ic_residential), ToolItem("Commercial", 1, R.drawable.ic_commercial), ToolItem("Industrial", 2, R.drawable.ic_industrial), ToolItem("Park", 11, R.drawable.ic_park)),
         "Transport" to listOf(ToolItem("Road", 9, R.drawable.ic_road), ToolItem("Rail", 8, R.drawable.ic_rail), ToolItem("Wire", 6, R.drawable.ic_wire), ToolItem("Bulldozer", 7, R.drawable.ic_bulldozer)),
@@ -366,61 +366,57 @@ class MainActivity : AppCompatActivity() {
 
         ctrlRow.addView(modeContainer)
 
-        // Preview button
-        previewBtn = Button(this).apply {
-            text = "Preview: Off"
+        // Trial button
+        trialBtn = Button(this).apply {
+            text = "Trial"
             background = roundedBg(0x1FFFFFFF.toInt(), 12)
             setTextColor(0xFFEEF2F6.toInt())
             setOnClickListener {
-                previewMode = !previewMode
-                previewBtn.text = if (previewMode) "Preview: On" else "Preview: Off"
-                updatePendingBar()
+                if (!trialActive) {
+                    trialActive = true
+                    sim.post { MicropolisNative.saveCity(handle, trialPath) }
+                    updateTrialControls()
+                }
             }
             setPadding(dp(16), dp(8), dp(16), dp(8))
             stateListAnimator = null
             setTextSize(14f)
         }
-        ctrlRow.addView(previewBtn, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { setMargins(8, 0, 0, 0) })
+        ctrlRow.addView(trialBtn, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { setMargins(8, 0, 0, 0) })
 
-        // Confirm button (hidden by default)
-        confirmBtn = Button(this).apply {
-            text = "Confirm"
+        // Keep button (hidden by default)
+        keepBtn = Button(this).apply {
+            text = "Keep"
             visibility = View.GONE
             background = roundedBg(0xFFF5A623.toInt(), 12)
             setTextColor(0xFF1A1207.toInt())
             setOnClickListener {
-                val snapshot = pending.toList()
-                pending.clear()
-                mapView.setPendingTiles(emptyList())
-                sim.post {
-                    for (t in snapshot) {
-                        MicropolisNative.doTool(handle, t.third, t.first, t.second)
-                    }
-                }
-                updatePendingBar()
+                trialActive = false
+                java.io.File(trialPath).delete()
+                updateTrialControls()
             }
             setPadding(dp(16), dp(8), dp(16), dp(8))
             stateListAnimator = null
             setTextSize(14f)
         }
-        ctrlRow.addView(confirmBtn, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { setMargins(8, 0, 0, 0) })
+        ctrlRow.addView(keepBtn, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { setMargins(8, 0, 0, 0) })
 
-        // Cancel button (hidden by default)
-        cancelBtn = Button(this).apply {
-            text = "Cancel"
+        // Revert button (hidden by default)
+        revertBtn = Button(this).apply {
+            text = "Revert"
             visibility = View.GONE
             background = roundedBg(0x1FFFFFFF.toInt(), 12)
             setTextColor(0xFFEEF2F6.toInt())
             setOnClickListener {
-                pending.clear()
-                mapView.setPendingTiles(emptyList())
-                updatePendingBar()
+                sim.post { MicropolisNative.loadCity(handle, trialPath) }
+                trialActive = false
+                updateTrialControls()
             }
             setPadding(dp(16), dp(8), dp(16), dp(8))
             stateListAnimator = null
             setTextSize(14f)
         }
-        ctrlRow.addView(cancelBtn, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { setMargins(8, 0, 0, 0) })
+        ctrlRow.addView(revertBtn, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { setMargins(8, 0, 0, 0) })
 
         bottom.addView(ctrlRow)
 
@@ -489,13 +485,8 @@ class MainActivity : AppCompatActivity() {
 
         // Set up tap listener
         mapView.onTileTap = { tileX, tileY ->
-            if (previewMode) {
-                pending.add(Triple(tileX, tileY, currentTool))
-                mapView.setPendingTiles(pending.map { it.first to it.second })
-            } else {
-                val tool = currentTool
-                sim.post { MicropolisNative.doTool(handle, tool, tileX, tileY) }
-            }
+            val tool = currentTool
+            sim.post { MicropolisNative.doTool(handle, tool, tileX, tileY) }
         }
 
         // Setup on sim thread
@@ -560,15 +551,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updatePendingBar() {
-        if (previewMode && pending.isNotEmpty()) {
-            confirmBtn.visibility = View.VISIBLE
-            cancelBtn.visibility = View.VISIBLE
-            confirmBtn.text = "Confirm (${pending.size})"
-        } else {
-            confirmBtn.visibility = View.GONE
-            cancelBtn.visibility = View.GONE
-        }
+    private fun updateTrialControls() {
+        keepBtn.visibility = if (trialActive) View.VISIBLE else View.GONE
+        revertBtn.visibility = if (trialActive) View.VISIBLE else View.GONE
+        trialBtn.isEnabled = !trialActive
+        trialBtn.alpha = if (trialActive) 0.5f else 1f
     }
 
     private fun buildToolCard(ti: ToolItem, sheet: com.google.android.material.bottomsheet.BottomSheetDialog): View {
