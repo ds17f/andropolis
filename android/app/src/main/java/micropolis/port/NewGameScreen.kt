@@ -134,6 +134,9 @@ internal fun MainActivity.showNewGame(resume: () -> Unit) {
             list.addView(card)
         }
         addView(list)
+        val maxH = (resources.displayMetrics.heightPixels * 0.6).toInt()
+        layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, maxH)
     })
 
     // Tab 2: Cities
@@ -166,6 +169,9 @@ internal fun MainActivity.showNewGame(resume: () -> Unit) {
             list.addView(card)
         }
         addView(list)
+        val maxH = (resources.displayMetrics.heightPixels * 0.6).toInt()
+        layoutParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, maxH)
     })
 
     // Build UI
