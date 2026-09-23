@@ -64,5 +64,22 @@ pause); "run in background" is a setting too.
       background and foreground agree. (qwen)
 - [x] 059 — Draw sprites (monster, tornado, trains, planes, ships…) + engine fix for
       sprite creation (unconstructed `SimSprite::name`).
-- [ ] Next: use the seeded DisasterRoll in the live tick loop too; zoom in on the event
-      when opening from a notification; WorkManager safety net (12.11); test on the phone.
+- [x] 060 How to play (tips + bundled manual) · 061 finer event groups · 062 Material
+      bottom bar + tool FAB · Move tool · background pace 5–100 yrs/h · monster fixes
+- [x] Rename to Micropolis, app icon (game tiles), trademark attribution
+- [~] 063 New game screen: new map (terrain) / 8 original scenarios / 23 sample cities
+      (engine side done: seeded scenario loader, terrain setter, assets)
+
+## 8. Left before "done" (2026-09-23)
+- [ ] Icon: user picks A (tower from tiles, current) or B (micropolisj icon).
+- [ ] Zoom in on the event (auto-goto and notification tap) — sprites are tiny zoomed out.
+- [ ] Phone soak test of background play; add the WorkManager safety net only if alarms
+      are missed or late there.
+- [ ] Live tick loop uses the seeded DisasterRoll too (consistency with background).
+- [ ] Scenario state is not in .cty (upstream format): saving/reloading a scenario turns it
+      into free play. Store the scenario id + score wait in our own sidecar if wanted.
+- [ ] Release build: applicationId, signing key, versionCode/Name, R8; decide on
+      distribution (sideload APK vs Play Store — the latter needs the trademark terms
+      checked for store listings: the name license forbids marketing use without consent).
+- [ ] Polish: sheets/cards/dialogs to Material components (top + bottom done); Budget tab
+      height; landscape / tablet layout.
