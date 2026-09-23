@@ -152,4 +152,14 @@ Java_micropolis_port_MicropolisNative_setAutoBudget(JNIEnv *, jobject, jlong h, 
     micropolis_set_auto_budget(eng(h), on);
 }
 
+JNIEXPORT jboolean JNICALL
+Java_micropolis_port_MicropolisNative_pollEvent(JNIEnv *env, jobject, jlong h, jintArray out) {
+    if (env->GetArrayLength(out) < 9) return JNI_FALSE;
+    MicropolisEvent ev;
+    if (!micropolis_poll_event(eng(h), &ev)) return JNI_FALSE;
+    jint t[9] = { ev.type, ev.x, ev.y, ev.a, ev.b, ev.c, ev.d, ev.e, ev.f };
+    env->SetIntArrayRegion(out, 0, 9, t);
+    return JNI_TRUE;
+}
+
 } /* extern "C" */

@@ -56,4 +56,14 @@ object MicropolisNative {
     external fun makeDisaster(handle: Long, disaster: Int)
     external fun setFunding(handle: Long, roadPct: Int, firePct: Int, policePct: Int)
     external fun setAutoBudget(handle: Long, on: Int)
+
+    /**
+     * Dequeue one engine event into out (length >= 9):
+     * [type, x, y, a, b, c, d, e, f]. Returns true if an event was written, false
+     * when the queue is empty. Call in a loop after each tick to drain. Event types:
+     * 0 MESSAGE (a=messageIndex 1..57, b=picture, c=important), 1 ZONE_STATUS
+     * (a=tileCat b=popDensity c=landValue d=crime e=pollution f=growth), 2 AUTO_GOTO,
+     * 3 EARTHQUAKE (a=strength), 4 LOSE, 5 WIN.
+     */
+    external fun pollEvent(handle: Long, out: IntArray): Boolean
 }

@@ -202,6 +202,38 @@ void micropolis_set_funding(MicropolisEngine *e,
                             int road_pct, int fire_pct, int police_pct);
 void micropolis_set_auto_budget(MicropolisEngine *e, int on); /* on: 1/0 */
 
+/* ---- Events (engine -> app) ----
+ * The engine calls back into the frontend for messages, sounds, zone queries and
+ * "go look here" requests. v1 used a no-op callback. Now those callbacks push
+ * structured events into an internal ring buffer that the app drains with
+ * micropolis_poll_event after each tick. The callback fires on the SAME thread that
+ * runs the simulation, and poll is called from that same thread, so no locking is
+ * needed.
+ */
+typedef enum MicropolisEventType {
+    MICROPOLIS_EVENT_MESSAGE     = 0, /* a=messageIndex(1..57), b=picture(0/1), c=important(0/1) */
+    MICROPOLIS_EVENT_ZONE_STATUS = 1, /* query result: a=tileCat b=popDensity c=landValue
+                                         d=crime e=pollution f=growthRate (all indexes) */
+    MICROPOLIS_EVENT_AUTO_GOTO   = 2, /* engine asks the view to center on (x,y) */
+    MICROPOLIS_EVENT_EARTHQUAKE  = 3, /* a=strength */
+    MICROPOLIS_EVENT_LOSE        = 4, /* game over: lost */
+    MICROPOLIS_EVENT_WIN         = 5  /* scenario won */
+} MicropolisEventType;
+
+/* A single event. x,y are tile coords (or -1 when not applicable); a..f are
+ * type-specific payload (see MicropolisEventType). */
+typedef struct MicropolisEvent {
+    int type;
+    int x, y;
+    int a, b, c, d, e, f;
+} MicropolisEvent;
+
+/*
+ * Dequeue the oldest pending event into *out. Returns 1 if an event was written,
+ * 0 if the queue is empty (or on bad args). Call in a loop to drain.
+ */
+int micropolis_poll_event(MicropolisEngine *e, MicropolisEvent *out);
+
 #ifdef __cplusplus
 }
 #endif

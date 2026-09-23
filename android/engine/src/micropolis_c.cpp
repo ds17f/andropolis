@@ -4,6 +4,7 @@
 #include "micropolis_c.h"
 #include "micropolis.h"
 #include "micropolis_null_callback.h"
+#include "micropolis_queue_callback.h"
 #include "tool.h"
 #include <cstring>
 #include <new>
@@ -41,14 +42,14 @@ static_assert(MICROPOLIS_TOOL_OK == TOOLRESULT_OK, "ToolResult enum mismatch");
 // in the destructor will delete the callback.
 struct MicropolisEngine {
     Micropolis *sim;
-    NullCallback *callback;
+    QueueCallback *callback;   // captures engine events into a ring buffer
 };
 
 extern "C" {
 
 MicropolisEngine *micropolis_create(void) {
     MicropolisEngine *e = new MicropolisEngine();
-    e->callback = new NullCallback();
+    e->callback = new QueueCallback();
     // Upstream Micropolis::Micropolis() does not initialize its `callback`
     // member, so setCallback()'s `if (callback != NULL) delete callback;` frees a
     // garbage pointer on the first call. That is harmless only where the heap
@@ -311,6 +312,11 @@ void micropolis_set_funding(MicropolisEngine *e, int road_pct, int fire_pct, int
 void micropolis_set_auto_budget(MicropolisEngine *e, int on) {
     if (!e) return;
     e->sim->setAutoBudget(on != 0);
+}
+
+int micropolis_poll_event(MicropolisEngine *e, MicropolisEvent *out) {
+    if (!e || !out || !e->callback) return 0;
+    return e->callback->pop(out) ? 1 : 0;
 }
 
 } /* extern "C" */
