@@ -880,11 +880,14 @@ class MainActivity : AppCompatActivity() {
             popValue.text = "$pop"
             scoreValue.text = "$score"
         }
-        if (lastReportYear != -1 && year > lastReportYear && annualReportEnabled) {
-            if (speed != 0) { lastRunSpeed = speed; speed = 0; updatePlayPauseText(); updateSpeedChipText() }
-            showReportCard(year)
-        }
+        val yearRolled = lastReportYear != -1 && year > lastReportYear && annualReportEnabled
         lastReportYear = year
+        if (yearRolled) {
+            ui.post {
+                if (speed != 0) { lastRunSpeed = speed; speed = 0; updatePlayPauseText(); updateSpeedChipText() }
+                showReportCard(year)
+            }
+        }
         sim.postDelayed({ tickLoop() }, 100)
     }
 
