@@ -63,6 +63,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var messageBanner: TextView
     private val bannerHide = Runnable { messageBanner.visibility = View.GONE }
     private var lastEventTile: Pair<Int, Int>? = null
+    private class LogEntry(val date: String, val text: String, val x: Int, val y: Int)
+    private val messageLog = ArrayDeque<LogEntry>()
+    private fun logMessage(text: String, x: Int, y: Int) {
+        messageLog.addFirst(LogEntry(subtitle.text.toString(), text, x, y))   // newest first
+        while (messageLog.size > 50) messageLog.removeLast()
+    }
     private val messageText = arrayOf(
         "", "More residential zones needed", "More commercial zones needed",
         "More industrial zones needed", "More roads required", "Inadequate rail system",
@@ -405,6 +411,36 @@ class MainActivity : AppCompatActivity() {
         grid.addView(h.view)
     }
 
+    private fun showMessagesPanel() {
+        showPanel("Messages", listOf(PanelTab("Recent", "📰") {
+            LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                if (messageLog.isEmpty()) {
+                    addView(TextView(this@MainActivity).apply {
+                        text = "No messages yet."; setTextColor(0xFF9AA7B4.toInt()); setPadding(0, dp(8), 0, dp(8))
+                    })
+                }
+                for (m in messageLog) {
+                    addView(LinearLayout(this@MainActivity).apply {
+                        orientation = LinearLayout.VERTICAL
+                        background = roundedBg(0x0DFFFFFF, 12); setPadding(dp(14), dp(10), dp(14), dp(10))
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) }
+                        addView(TextView(this@MainActivity).apply {
+                            text = m.date; setTextColor(0xFF7D8B99.toInt()); textSize = 11f
+                        })
+                        addView(TextView(this@MainActivity).apply {
+                            text = m.text; setTextColor(0xFFEEF2F6.toInt()); textSize = 14f
+                        })
+                        if (m.x >= 0 && m.y >= 0) {
+                            setOnClickListener { mapView.centerOnTile(m.x, m.y) }
+                        }
+                    })
+                }
+            }
+        }))
+    }
+
     private fun showPanel(title: String, tabs: List<PanelTab>) {
         val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(this)
         val col = LinearLayout(this).apply {
@@ -583,10 +619,12 @@ class MainActivity : AppCompatActivity() {
                 pm.menu.add("Save city")
                 pm.menu.add("Load city")
                 pm.menu.add(if (annualReportEnabled) "Annual report: On" else "Annual report: Off")
+                pm.menu.add("Messages")
                 pm.menu.add("Settings")
                 pm.setOnMenuItemClickListener { item ->
                     when (item.title) {
                         "Redo" -> redo()
+                        "Messages" -> showMessagesPanel()
                         "Settings" -> showSettingsPanel()
                         "New city" -> {
                             cityReady = false
@@ -1137,6 +1175,7 @@ class MainActivity : AppCompatActivity() {
                 when (type) {
                     0 -> { // MESSAGE
                         showBanner(msgText(a))
+                        logMessage(msgText(a), ex, ey)
                         if (ex >= 0 && ey >= 0) {
                             lastEventTile = Pair(ex, ey)
                             if (c == 1) mapView.centerOnTile(ex, ey)   // important → auto-zoom
