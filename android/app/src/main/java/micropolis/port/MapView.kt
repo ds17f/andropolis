@@ -330,9 +330,7 @@ class MapView(context: Context) : View(context) {
             }
         }
         
-        canvas.restore()
-        
-        // Draw sprites
+        // Draw sprites (moving objects) in map space, over tiles and overlay
         val px = tileSize / 16f                       // screen units per world pixel
         for (i in 0 until spriteCount) {
             val bmp = spriteBitmap(sprites[i * 4], sprites[i * 4 + 1]) ?: continue
@@ -341,6 +339,8 @@ class MapView(context: Context) : View(context) {
             dstRect.set(left, top, left + bmp.width * px, top + bmp.height * px)
             canvas.drawBitmap(bmp, null, dstRect, paint)
         }
+        
+        canvas.restore()
         
         // Draw ghost for place-on-lift tools
         if (toolFootprint > 1 && ghostX >= 0) {
