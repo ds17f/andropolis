@@ -415,6 +415,23 @@ save format does **not** store the engine's random seed, so a plain load→run d
 related seed) and snapshot it in the sidecar alongside `.cty`. With RNG capture,
 `load(state)+setRng(seed)+advance(n)` is bit-identical every time.
 
+**Feasibility — confirmed (2026-09-23 investigation):**
+- All engine randomness goes through one LCG: `UQuad Micropolis::nextRandom`, advanced
+  only in `simRandom()` (`nextRandom * 1103515245 + 12345`); `getRandom*` all call it.
+  No `rand()`/`srand()`/`time()` anywhere in the engine. `nextRandom` is **public**, so the
+  C-ABI can read/write the full 64-bit state (`seedRandom(int)` truncates — don't use it).
+- Other state is *not* in `.cty`: `simCycle`, `phaseCycle`, `speedCycle`, `simPass`,
+  `doInitialEval`, and live sprites (monster, tornado, trains, planes); loading also runs
+  `initWillStuff()`. So `load(.cty)` ≠ the live engine.
+- **Why that's fine:** predict-and-schedule only needs the *probe* (fast-forward to find
+  the next event) and the *replay* (advance to "now" or to the event) to agree with
+  **each other**, not with the live engine. Define the background timeline as a fixed
+  recipe — *fresh engine → `init` → `load(S0)` → set `nextRandom = rng0` → advance N
+  ticks* — and both runs are bit-identical. Cost: a one-time hiccup at the moment of
+  backgrounding (in-flight sprites vanish, cycle counters reset), invisible in practice.
+  Optionally capture/restore the cycle counters too to shrink even that.
+- Required C-ABI: `int64_t micropolis_get_rng(e)` / `void micropolis_set_rng(e, int64_t)`.
+
 **Fallback if RNG capture proves infeasible:** drop to a coarser promise — the
 background advances the city and notifies, but the *exact* event tick is best-effort and
 foregrounding lands "close enough" rather than frame-exact. This degrades B toward a
@@ -512,8 +529,8 @@ foregrounded.
 
 ### 12.14 Open decisions
 
-- **RNG capture feasibility** (12.5) — confirm `Micropolis`'s PRNG is fully captured by
-  a small get/set; this gates frame-exact replay vs. the coarser fallback.
+- ~~**RNG capture feasibility** (12.5)~~ — **resolved: feasible** (single public 64-bit
+  LCG; probe and replay share one load-and-seed recipe). See 12.5.
 - **Do period nudges pause?** Proposed: year-end = notify only, span-end = pause.
   Confirm with playtesting.
 - **Pace granularity** — fixed presets vs. free slider.
