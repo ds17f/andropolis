@@ -28,7 +28,6 @@ class MainActivity : AppCompatActivity() {
     internal var lastToolUseMs = 0L           // for the idle fallback to Move (ui thread)
     internal var idleToMove = true            // Settings: drop the tool after IDLE_TO_MOVE_MS
     internal val moveItem by lazy { ToolItem("Move", MOVE_TOOL, R.drawable.ic_move) }
-    internal lateinit var pillClose: android.widget.TextView
     /** Once a second: drop an unused tool back to Move (Settings: idleToMove). */
     internal val idleCheck: Runnable = object : Runnable {
         override fun run() {
@@ -162,13 +161,10 @@ class MainActivity : AppCompatActivity() {
     internal lateinit var fundsValue: android.widget.TextView
     internal lateinit var popValue: android.widget.TextView
     internal lateinit var scoreValue: android.widget.TextView
-    internal lateinit var pillIcon: ImageView
-    internal lateinit var pillName: TextView
-    internal lateinit var bottom: LinearLayout
     internal lateinit var minimap: MinimapView
-    internal lateinit var toolPill: LinearLayout
-    internal lateinit var undoBtn: Button
-    internal lateinit var panelBar: LinearLayout
+    internal lateinit var undoBtn: View                 // BottomBar.kt
+    internal lateinit var toolFab: com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+    internal lateinit var dropToolFab: View             // small ✕ above the tool FAB; hidden in Move
     internal lateinit var simState: TextView
     internal lateinit var overlayState: TextView
     internal lateinit var mapContainer: android.widget.FrameLayout

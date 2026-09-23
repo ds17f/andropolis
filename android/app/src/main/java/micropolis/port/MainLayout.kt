@@ -114,116 +114,14 @@ internal fun MainActivity.buildLayout() {
     root.addView(mapContainer, LinearLayout.LayoutParams(
         LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
-    // ===== Bottom controls =====
-    bottom = LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL
-        setBackgroundColor(0xFF12161C.toInt())
-        setPadding(12, 10, 12, 14)
-        elevation = dp(6).toFloat()
-    }
-
-    // Tool pill (opens palette)
-    toolPill = LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL
-        background = roundedBg(0xFF1A222A.toInt(), 18)
-        setPadding(dp(14), dp(8), dp(14), dp(8))
-        setOnClickListener { openPalette() }
-        layoutParams = LayoutParams(0, LayoutParams.WRAP_CONTENT).apply { weight = 1f }
-    }
-
-    // Pill icon in rounded amber container
-    val pillIconContainer = LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL
-        background = roundedBg(0x33F5A623.toInt(), 12)
-        layoutParams = LinearLayout.LayoutParams(dp(44), dp(44))
-    }
-    pillIcon = ImageView(this).apply {
-        imageTintList = android.content.res.ColorStateList.valueOf(0xFFF5A623.toInt())
-        layoutParams = LayoutParams(dp(44), dp(44)).apply { gravity = android.view.Gravity.CENTER }
-        scaleType = ImageView.ScaleType.CENTER
-    }
-    pillIconContainer.addView(pillIcon)
-    toolPill.addView(pillIconContainer)
-
-    val pillInfo = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        )
-        setPadding(dp(12), 0, dp(12), 0)
-    }
-
-    val pillLabel = TextView(this).apply {
-        text = "Current tool"
-        setTextColor(0xFF9AA7B4.toInt())
-        setTextSize(11f)
-    }
-    pillInfo.addView(pillLabel)
-
-    pillName = TextView(this).apply {
-        text = ""
-        setTextColor(0xFFEEF2F6.toInt())
-        setTextSize(16f)
-        setTypeface(null, android.graphics.Typeface.BOLD)
-    }
-    pillInfo.addView(pillName)
-
-    pillInfo.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-    toolPill.addView(pillInfo)
-
-    // ✕ drops the current tool (back to Move); hidden while in Move.
-    pillClose = TextView(this).apply {
-        text = "✕"; textSize = 18f; setTextColor(0xFF9AA7B4.toInt())
-        gravity = android.view.Gravity.CENTER
-        setPadding(dp(12), dp(8), dp(4), dp(8))
-        contentDescription = "Drop tool"
-        setOnClickListener { selectTool(MOVE_TOOL) }
-    }
-    toolPill.gravity = android.view.Gravity.CENTER_VERTICAL
-    toolPill.addView(pillClose)
-
-    bottom.addView(toolPill)
-
-    // Undo / Redo buttons
-    undoBtn = Button(this).apply {
-        text = "↶"
-        background = roundedBg(0xFF1A222A.toInt(), 18)
-        setTextColor(0xFFEEF2F6.toInt())
-        stateListAnimator = null
-        setTextSize(18f)
-        setPadding(dp(14), dp(8), dp(14), dp(8))
-        setOnClickListener { undo() }
-    }
-    bottom.addView(undoBtn, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { setMargins(dp(8), 0, 0, 0) })
-
-    // Panel pill row
-    simState = TextView(this).apply {
-        text = speedNames[speed]
-        setTextColor(0xFF9AA7B4.toInt())
-        textSize = 11f
-    }
-    val cityState = TextView(this).apply {
-        text = "Budget · stats"
-        setTextColor(0xFF9AA7B4.toInt())
-        textSize = 11f
-    }
-    overlayState = TextView(this).apply {
-        text = "Off"
-        setTextColor(0xFF9AA7B4.toInt())
-        textSize = 11f
-    }
-    panelBar = LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL
-        setBackgroundColor(0xFF12161C.toInt())
-        setPadding(dp(8), dp(6), dp(8), dp(6))
-    }
-    panelBar.addView(buildPill("⏩", "Simulation", simState) { showSimulationPanel() })
-    panelBar.addView(buildPill("📊", "City", cityState) { showCityPanel() })
-    panelBar.addView(buildPill("🗺", "Overlay", overlayState) { showOverlayPanel() })
-    root.addView(panelBar, root.indexOfChild(bottom))
-
-    root.addView(bottom)
+    // ===== Bottom: Material bar (Simulation / City / Overlay / Undo) + tool FAB over the map =====
+    root.addView(buildBottomBar())
+    mapContainer.addView(buildToolFab(), android.widget.FrameLayout.LayoutParams(
+        android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+        android.widget.FrameLayout.LayoutParams.WRAP_CONTENT).apply {
+            gravity = android.view.Gravity.BOTTOM or android.view.Gravity.END
+            setMargins(0, 0, dp(16), dp(16))
+        })
 
     setContentView(root)
 }

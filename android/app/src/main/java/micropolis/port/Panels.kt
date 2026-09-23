@@ -87,9 +87,9 @@ internal fun MainActivity.pauseForUi(): () -> Unit {
 internal fun MainActivity.updatePill() {
     val move = currentTool == MOVE_TOOL
     val ti = if (move) moveItem else allTools.first { it.value == currentTool }
-    pillIcon.setImageResource(ti.icon)
-    pillName.text = ti.label
-    pillClose.visibility = if (move) View.GONE else View.VISIBLE
+    toolFab.text = ti.label
+    toolFab.setIconResource(ti.icon)
+    dropToolFab.visibility = if (move) View.GONE else View.VISIBLE
     mapView.moveMode = move
     mapView.toolFootprint = if (move) 1 else footprintOf(currentTool)
     mapView.straightLineTool = !move && isStraightLineTool(currentTool)
