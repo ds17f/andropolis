@@ -66,6 +66,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var bottom: LinearLayout
     private lateinit var toolPill: LinearLayout
     private lateinit var undoBtn: Button
+    private lateinit var panelBar: LinearLayout
+    private lateinit var simState: TextView
 
     // Road / rail / wire draw straight axis-locked lines when dragged.
     private fun isStraightLineTool(tool: Int) = tool == 6 || tool == 8 || tool == 9
@@ -79,6 +81,8 @@ class MainActivity : AppCompatActivity() {
 
     data class ToolItem(val label: String, val value: Int, val icon: Int)
 
+    class PanelTab(val title: String, val build: () -> View)
+
     private fun roundedBg(color: Int, radiusDp: Int): GradientDrawable {
         val d = GradientDrawable()
         d.setColor(color)
@@ -87,6 +91,64 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
+    private fun showPanel(title: String, tabs: List<PanelTab>) {
+        val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(this)
+        val col = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(16), dp(20), dp(24))
+            setBackgroundColor(0xFF12161C.toInt())
+        }
+        col.addView(TextView(this).apply {
+            text = title
+            setTextColor(0xFFEEF2F6.toInt())
+            textSize = 18f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            setPadding(0, 0, 0, dp(12))
+        })
+        val content = android.widget.FrameLayout(this)
+        if (tabs.size > 1) {
+            val tabRow = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, 0, 0, dp(12))
+            }
+            val chips = ArrayList<TextView>()
+            fun select(idx: Int) {
+                content.removeAllViews()
+                val sv = ScrollView(this)
+                sv.addView(tabs[idx].build())
+                content.addView(sv)
+                chips.forEachIndexed { i, c ->
+                    val on = i == idx
+                    c.background = roundedBg(if (on) 0xFFF5A623.toInt() else 0x1FFFFFFF, 10)
+                    c.setTextColor(if (on) 0xFF1A1207.toInt() else 0xFF9AA7B4.toInt())
+                }
+            }
+            tabs.forEachIndexed { i, t ->
+                val chip = TextView(this).apply {
+                    text = t.title
+                    textSize = 13f
+                    setPadding(dp(14), dp(8), dp(14), dp(8))
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply { rightMargin = dp(8) }
+                    setOnClickListener { select(i) }
+                }
+                chips.add(chip)
+                tabRow.addView(chip)
+            }
+            col.addView(tabRow)
+            col.addView(content)
+            select(0)
+        } else {
+            val sv = ScrollView(this)
+            sv.addView(tabs[0].build())
+            col.addView(sv)
+        }
+        sheet.setContentView(col)
+        sheet.show()
+    }
 
     private fun promptCityName(isFirst: Boolean) {
         val input = android.widget.EditText(this).apply {
@@ -131,7 +193,7 @@ class MainActivity : AppCompatActivity() {
             elevation = dp(6).toFloat()
         }
 
-        // Row 1: city title, play/pause, speed chip, overflow
+                // Row 1: city title, play/pause, overflow
         val row1 = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(0, 0, 0, 8)
@@ -183,24 +245,6 @@ class MainActivity : AppCompatActivity() {
             setTextSize(14f)
         }
         row1.addView(playPauseBtn, LayoutParams(dp(48), LayoutParams.WRAP_CONTENT).apply { setMargins(8, 0, 0, 0) })
-
-        // Speed chip
-        speedChip = Button(this).apply {
-            setText(speedNames[speed])
-            background = roundedBg(0x1FFFFFFF.toInt(), 12)
-            setTextColor(0xFFEEF2F6.toInt())
-            setOnClickListener {
-                val next = if (speed == 3) 1 else speed + 1
-                speed = next
-                lastRunSpeed = next
-                updateSpeedChipText()
-                updatePlayPauseText()
-            }
-            setPadding(dp(14), dp(8), dp(14), dp(8))
-            stateListAnimator = null
-            setTextSize(14f)
-        }
-        row1.addView(speedChip, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { setMargins(8, 0, 0, 0) })
 
         // Overflow button
         overflowBtn = Button(this).apply {
@@ -427,6 +471,58 @@ class MainActivity : AppCompatActivity() {
         }
         bottom.addView(undoBtn, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { setMargins(dp(8), 0, 0, 0) })
 
+        // Panel pill row
+        simState = TextView(this).apply {
+            text = speedNames[speed]
+            setTextColor(0xFF9AA7B4.toInt())
+            textSize = 11f
+        }
+        val cityState = TextView(this).apply {
+            text = "Budget · stats"
+            setTextColor(0xFF9AA7B4.toInt())
+            textSize = 11f
+        }
+        val overlayState = TextView(this).apply {
+            text = "Off"
+            setTextColor(0xFF9AA7B4.toInt())
+            textSize = 11f
+        }
+        panelBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setBackgroundColor(0xFF12161C.toInt())
+            setPadding(dp(8), dp(6), dp(8), dp(6))
+        }
+        panelBar.addView(buildPill("⏩", "Simulation", simState) { showSimulationPanel() })
+        panelBar.addView(buildPill("📊", "City", cityState) {
+            showPanel(
+                "City",
+                listOf(
+                    PanelTab("Soon", {
+                        TextView(this).apply {
+                            text = "City panel — coming soon"
+                            setTextColor(0xFF9AA7B4.toInt())
+                            setPadding(0, dp(8), 0, dp(8))
+                        }
+                    })
+                )
+            )
+        })
+        panelBar.addView(buildPill("🗺", "Overlay", overlayState) {
+            showPanel(
+                "Map overlay",
+                listOf(
+                    PanelTab("Soon", {
+                        TextView(this).apply {
+                            text = "Overlays — coming soon"
+                            setTextColor(0xFF9AA7B4.toInt())
+                            setPadding(0, dp(8), 0, dp(8))
+                        }
+                    })
+                )
+            )
+        })
+        root.addView(panelBar, root.indexOfChild(bottom))
+
         root.addView(bottom)
 
         setContentView(root)
@@ -538,7 +634,34 @@ class MainActivity : AppCompatActivity() {
         sheet.show()
     }
 
-
+    private fun buildPill(glyph: String, label: String, state: TextView, onClick: () -> Unit): LinearLayout {
+        val pill = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            background = roundedBg(0xFF1A222A.toInt(), 18)
+            setPadding(dp(12), dp(8), dp(12), dp(8))
+            layoutParams = LayoutParams(0, LayoutParams.WRAP_CONTENT).apply { weight = 1f; setMargins(dp(4), 0, dp(4), 0) }
+            setOnClickListener { onClick() }
+        }
+        pill.addView(TextView(this).apply {
+            text = glyph
+            textSize = 18f
+            setTextColor(0xFFF5A623.toInt())
+            setPadding(0, 0, dp(8), 0)
+        })
+        val info = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        info.addView(TextView(this).apply {
+            text = label
+            setTextColor(0xFFEEF2F6.toInt())
+            textSize = 13f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+        })
+        info.addView(state)
+        pill.addView(info)
+        return pill
+    }
 
     private fun buildToolCard(ti: ToolItem, sheet: com.google.android.material.bottomsheet.BottomSheetDialog): View {
         val selected = ti.value == currentTool
@@ -574,8 +697,54 @@ class MainActivity : AppCompatActivity() {
         playPauseBtn.text = if (speed == 0) "▶" else "⏸"
     }
 
-    private fun updateSpeedChipText() {
-        speedChip.text = speedNames[speed]
+    private fun updateSpeedChipText() { simState.text = speedNames[speed] }
+
+    private fun showSimulationPanel() {
+        showPanel("Simulation", listOf(
+            PanelTab("Speed") {
+                LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    for (i in speedNames.indices) {
+                        val on = speed == i
+                        addView(Button(this@MainActivity).apply {
+                            text = speedNames[i]
+                            background = roundedBg(if (on) 0xFFF5A623.toInt() else 0x1FFFFFFF, 12)
+                            setTextColor(if (on) 0xFF1A1207.toInt() else 0xFFEEF2F6.toInt())
+                            stateListAnimator = null
+                            layoutParams = LinearLayout.LayoutParams(
+                                LinearLayout.LayoutParams.MATCH_PARENT,
+                                LinearLayout.LayoutParams.WRAP_CONTENT
+                            ).apply { topMargin = dp(8) }
+                            setOnClickListener {
+                                speed = i
+                                if (i > 0) lastRunSpeed = i
+                                updatePlayPauseText()
+                                updateSpeedChipText()
+                            }
+                        })
+                    }
+                }
+            },
+            PanelTab("Disasters") {
+                val names = listOf("Fire", "Flood", "Tornado", "Earthquake", "Monster", "Meltdown")
+                LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    names.forEachIndexed { kind, n ->
+                        addView(Button(this@MainActivity).apply {
+                            text = n
+                            background = roundedBg(0x1FFFFFFF, 12)
+                            setTextColor(0xFFEEF2F6.toInt())
+                            stateListAnimator = null
+                            layoutParams = LinearLayout.LayoutParams(
+                                LinearLayout.LayoutParams.MATCH_PARENT,
+                                LinearLayout.LayoutParams.WRAP_CONTENT
+                            ).apply { topMargin = dp(8) }
+                            setOnClickListener { sim.post { MicropolisNative.makeDisaster(handle, kind) } }
+                        })
+                    }
+                }
+            }
+        ))
     }
 
     private fun tickLoop() {
