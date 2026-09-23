@@ -19,6 +19,7 @@ internal fun MainActivity.backgroundSettingsTab(): View {
         BackgroundPrefs.enabled(prefs)
     ) { c ->
         prefs.edit().putBoolean(BackgroundPrefs.KEY_ENABLED, c).apply()
+        if (c) requestNotificationPermission()
     })
 
     // 2. Section label "Pace while closed"
@@ -111,6 +112,17 @@ internal fun MainActivity.backgroundSettingsTab(): View {
 
         col.addView(row)
     }
+
+    // 6. Test notification button
+    val testBtn = android.widget.Button(this).apply {
+        setText("Send a test notification")
+        setPadding(dp(16), dp(12), dp(16), dp(12))
+        setOnClickListener {
+            requestNotificationPermission()
+            Notifier.post(this@backgroundSettingsTab, BackgroundPrefs.GROUPS[0], "Fire reported!", "Test notification — tap to go to the map centre", 60, 50)
+        }
+    }
+    col.addView(testBtn)
 
     return col
 }
