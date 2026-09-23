@@ -193,6 +193,9 @@ typedef enum MicropolisDisaster {
 } MicropolisDisaster;
 /* Trigger a disaster. Unknown values are ignored. */
 void micropolis_make_disaster(MicropolisEngine *e, int disaster);
+/* Turn the engine's own random disasters on (1) or off (0). Does not affect
+ * micropolis_make_disaster. (Engine: Micropolis::setEnableDisasters.) */
+void micropolis_set_enable_disasters(MicropolisEngine *e, int on);
 
 /* ---- Budget funding ----
  * Manual funding levels as whole percents 0..100. This turns autoBudget OFF so
