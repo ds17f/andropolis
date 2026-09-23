@@ -11,6 +11,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.LinearLayout.LayoutParams
 import android.widget.PopupMenu
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 
@@ -52,10 +53,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pillIcon: ImageView
     private lateinit var pillName: TextView
     private lateinit var bottom: LinearLayout
-    private lateinit var ctrlRow: LinearLayout
-    private lateinit var trialBtn: Button
-    private lateinit var keepBtn: Button
-    private lateinit var revertBtn: Button
+    private lateinit var toolPill: LinearLayout
+    private lateinit var trialPill: LinearLayout
+    private lateinit var trialState: TextView
     private val toolCategories = linkedMapOf(
         "Zones" to listOf(ToolItem("Residential", 0, R.drawable.ic_residential), ToolItem("Commercial", 1, R.drawable.ic_commercial), ToolItem("Industrial", 2, R.drawable.ic_industrial), ToolItem("Park", 11, R.drawable.ic_park)),
         "Transport" to listOf(ToolItem("Road", 9, R.drawable.ic_road), ToolItem("Rail", 8, R.drawable.ic_rail), ToolItem("Wire", 6, R.drawable.ic_wire), ToolItem("Bulldozer", 7, R.drawable.ic_bulldozer)),
@@ -314,78 +314,19 @@ class MainActivity : AppCompatActivity() {
 
         // ===== Bottom controls =====
         bottom = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
+            orientation = LinearLayout.HORIZONTAL
             setBackgroundColor(0xFF12161C.toInt())
             setPadding(12, 10, 12, 14)
             elevation = dp(6).toFloat()
         }
 
-        // Contextual control row (Preview, Confirm/Cancel)
-        ctrlRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER
-        }
-
-        // Trial button
-        trialBtn = Button(this).apply {
-            text = "Trial"
-            background = roundedBg(0x1FFFFFFF.toInt(), 12)
-            setTextColor(0xFFEEF2F6.toInt())
-            setOnClickListener {
-                if (!trialActive) {
-                    trialActive = true
-                    sim.post { MicropolisNative.saveCity(handle, trialPath) }
-                    updateTrialControls()
-                }
-            }
-            setPadding(dp(16), dp(8), dp(16), dp(8))
-            stateListAnimator = null
-            setTextSize(14f)
-        }
-        ctrlRow.addView(trialBtn, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { setMargins(8, 0, 0, 0) })
-
-        // Keep button (hidden by default)
-        keepBtn = Button(this).apply {
-            text = "Keep"
-            visibility = View.GONE
-            background = roundedBg(0xFFF5A623.toInt(), 12)
-            setTextColor(0xFF1A1207.toInt())
-            setOnClickListener {
-                trialActive = false
-                java.io.File(trialPath).delete()
-                updateTrialControls()
-            }
-            setPadding(dp(16), dp(8), dp(16), dp(8))
-            stateListAnimator = null
-            setTextSize(14f)
-        }
-        ctrlRow.addView(keepBtn, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { setMargins(8, 0, 0, 0) })
-
-        // Revert button (hidden by default)
-        revertBtn = Button(this).apply {
-            text = "Revert"
-            visibility = View.GONE
-            background = roundedBg(0x1FFFFFFF.toInt(), 12)
-            setTextColor(0xFFEEF2F6.toInt())
-            setOnClickListener {
-                sim.post { MicropolisNative.loadCity(handle, trialPath) }
-                trialActive = false
-                updateTrialControls()
-            }
-            setPadding(dp(16), dp(8), dp(16), dp(8))
-            stateListAnimator = null
-            setTextSize(14f)
-        }
-        ctrlRow.addView(revertBtn, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply { setMargins(8, 0, 0, 0) })
-
-        bottom.addView(ctrlRow)
-
-        // Tool pill (prominent, styled like the mockup)
-        val pillLayout = LinearLayout(this).apply {
+        // Tool pill (opens palette)
+        toolPill = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             background = roundedBg(0xFF1A222A.toInt(), 18)
             setPadding(dp(14), dp(8), dp(14), dp(8))
             setOnClickListener { openPalette() }
+            layoutParams = LayoutParams(0, LayoutParams.WRAP_CONTENT).apply { weight = 1f }
         }
 
         // Pill icon in rounded amber container
@@ -400,7 +341,7 @@ class MainActivity : AppCompatActivity() {
             scaleType = ImageView.ScaleType.CENTER
         }
         pillIconContainer.addView(pillIcon)
-        pillLayout.addView(pillIconContainer)
+        toolPill.addView(pillIconContainer)
 
         val pillInfo = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -426,22 +367,55 @@ class MainActivity : AppCompatActivity() {
         }
         pillInfo.addView(pillName)
 
-        pillLayout.addView(pillInfo)
+        toolPill.addView(pillInfo)
 
-        val pillArrow = TextView(this).apply {
-            text = "▲"
-            setTextColor(0xFF7D8B99.toInt())
-            setTextSize(12f)
+        bottom.addView(toolPill)
+
+        // Trial pill (opens trial panel)
+        trialPill = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            background = roundedBg(0xFF1A222A.toInt(), 18)
+            setPadding(dp(16), dp(8), dp(16), dp(8))
+            setOnClickListener { showTrialPanel() }
+            layoutParams = LayoutParams(0, LayoutParams.WRAP_CONTENT).apply { weight = 1f }
         }
-        pillLayout.addView(pillArrow)
 
-        bottom.addView(pillLayout, LayoutParams(LayoutParams.MATCH_PARENT, dp(56)).apply { setMargins(0, dp(12), 0, 0) })
+        val trialInfo = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            setPadding(dp(12), 0, dp(12), 0)
+        }
+
+        val trialLabel = TextView(this).apply {
+            text = "⚑"
+            setTextColor(0xFFEEF2F6.toInt())
+            setTextSize(14f)
+            setTypeface(null, android.graphics.Typeface.BOLD)
+        }
+        trialInfo.addView(trialLabel)
+
+        trialState = TextView(this).apply {
+            text = "Trial: off"
+            setTextColor(0xFF9AA7B4.toInt())
+            setTextSize(11f)
+        }
+        trialInfo.addView(trialState)
+
+        trialPill.addView(trialInfo)
+
+        bottom.addView(trialPill)
+
+        root.addView(bottom)
 
         root.addView(bottom)
 
         setContentView(root)
 
         updatePill()
+        updateTrialPill()
 
         // Set up tap listener
         mapView.onTileTap = { tileX, tileY ->
@@ -464,6 +438,70 @@ class MainActivity : AppCompatActivity() {
         val ti = allTools.first { it.value == currentTool }
         pillIcon.setImageResource(ti.icon)
         pillName.text = ti.label
+    }
+
+    private fun showTrialPanel() {
+        val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(this)
+        val col = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(16), dp(20), dp(28))
+            setBackgroundColor(0xFF12161C.toInt())
+        }
+        col.addView(TextView(this).apply {
+            text = "Build session"
+            setTextColor(0xFFEEF2F6.toInt())
+            textSize = 18f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            setPadding(0, 0, 0, dp(8))
+        })
+        fun panelButton(label: String, amber: Boolean, onClick: () -> Unit): Button =
+            Button(this).apply {
+                text = label
+                background = roundedBg(if (amber) 0xFFF5A623.toInt() else 0x1FFFFFFF.toInt(), 12)
+                setTextColor(if (amber) 0xFF1A1207.toInt() else 0xFFEEF2F6.toInt())
+                stateListAnimator = null
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp(10) }
+                setOnClickListener { onClick(); sheet.dismiss() }
+            }
+        if (!trialActive) {
+            col.addView(TextView(this).apply {
+                text = "Snapshot the city, build freely, then keep or revert."
+                setTextColor(0xFF9AA7B4.toInt())
+                textSize = 13f
+                setPadding(0, 0, 0, dp(4))
+            })
+            col.addView(panelButton("Start trial", true) {
+                trialActive = true
+                sim.post { MicropolisNative.saveCity(handle, trialPath) }
+                updateTrialPill()
+            })
+        } else {
+            col.addView(panelButton("Keep changes", true) {
+                trialActive = false
+                java.io.File(trialPath).delete()
+                updateTrialPill()
+            })
+            col.addView(panelButton("Revert changes", false) {
+                sim.post { MicropolisNative.loadCity(handle, trialPath) }
+                trialActive = false
+                updateTrialPill()
+            })
+        }
+        val sv = ScrollView(this)
+        sv.addView(col)
+        sheet.setContentView(sv)
+        sheet.show()
+    }
+
+    private fun updateTrialPill() {
+        if (trialActive) {
+            trialState.text = "Trial: on"
+        } else {
+            trialState.text = "Trial: off"
+        }
     }
 
     private fun openPalette() {
@@ -491,12 +529,7 @@ class MainActivity : AppCompatActivity() {
         sheet.show()
     }
 
-    private fun updateTrialControls() {
-        keepBtn.visibility = if (trialActive) View.VISIBLE else View.GONE
-        revertBtn.visibility = if (trialActive) View.VISIBLE else View.GONE
-        trialBtn.isEnabled = !trialActive
-        trialBtn.alpha = if (trialActive) 0.5f else 1f
-    }
+
 
     private fun buildToolCard(ti: ToolItem, sheet: com.google.android.material.bottomsheet.BottomSheetDialog): View {
         val selected = ti.value == currentTool
