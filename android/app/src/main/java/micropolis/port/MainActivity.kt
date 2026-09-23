@@ -28,7 +28,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var sim: Handler
     private lateinit var ui: Handler
     private val statsBuf = IntArray(10)
-    private var buildMode = true
     @Volatile private var speed = 2   // 0=Pause 1=Slow 2=Med 3=Fast
     private var lastRunSpeed = 2
     private val speedNames = arrayOf("Pause", "Slow", "Med", "Fast")
@@ -54,8 +53,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pillName: TextView
     private lateinit var bottom: LinearLayout
     private lateinit var ctrlRow: LinearLayout
-    private lateinit var segMove: TextView
-    private lateinit var segBuild: TextView
     private lateinit var trialBtn: Button
     private lateinit var keepBtn: Button
     private lateinit var revertBtn: Button
@@ -323,48 +320,11 @@ class MainActivity : AppCompatActivity() {
             elevation = dp(6).toFloat()
         }
 
-        // Contextual control row (Move/Build toggle, Preview, Confirm/Cancel)
+        // Contextual control row (Preview, Confirm/Cancel)
         ctrlRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER
         }
-
-        // Move/Build segmented toggle
-        val modeContainer = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            background = roundedBg(0xFF1A222A.toInt(), 14)
-            setPadding(dp(4), dp(4), dp(4), dp(4))
-            layoutParams = LinearLayout.LayoutParams(
-                LayoutParams.WRAP_CONTENT,
-                LayoutParams.WRAP_CONTENT
-            )
-        }
-
-        segMove = TextView(this).apply {
-            text = "Move"
-            setTextColor(0xFF9AA7B4.toInt())
-            setTextSize(14f)
-            setTextIsSelectable(false)
-            setPadding(dp(20), dp(8), dp(20), dp(8))
-            setOnClickListener {
-                setBuildMode(false)
-            }
-        }
-        modeContainer.addView(segMove)
-
-        segBuild = TextView(this).apply {
-            text = "Build"
-            setTextColor(0xFF1A1207.toInt())
-            setTextSize(14f)
-            setTextIsSelectable(false)
-            setPadding(dp(20), dp(8), dp(20), dp(8))
-            setOnClickListener {
-                setBuildMode(true)
-            }
-        }
-        modeContainer.addView(segBuild)
-
-        ctrlRow.addView(modeContainer)
 
         // Trial button
         trialBtn = Button(this).apply {
@@ -529,26 +489,6 @@ class MainActivity : AppCompatActivity() {
         scroll.addView(col)
         sheet.setContentView(scroll)
         sheet.show()
-    }
-
-    private fun setBuildMode(mode: Boolean) {
-        buildMode = mode
-        mapView.buildEnabled = buildMode
-        styleModeSegments()
-    }
-
-    private fun styleModeSegments() {
-        if (buildMode) {
-            segBuild.background = roundedBg(0xFFF5A623.toInt(), 10)
-            segBuild.setTextColor(0xFF1A1207.toInt())
-            segMove.background = null
-            segMove.setTextColor(0xFF9AA7B4.toInt())
-        } else {
-            segMove.background = roundedBg(0xFFF5A623.toInt(), 10)
-            segMove.setTextColor(0xFF1A1207.toInt())
-            segBuild.background = null
-            segBuild.setTextColor(0xFF9AA7B4.toInt())
-        }
     }
 
     private fun updateTrialControls() {

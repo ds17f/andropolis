@@ -7,7 +7,6 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
-import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
@@ -27,17 +26,17 @@ class MapView(context: Context) : View(context) {
     private val dstRect = RectF()
 
     var onTileTap: ((Int, Int) -> Unit)? = null
-    var buildEnabled: Boolean = true
 
     private var scale = 1f
     private var panX = 0f
     private var panY = 0f
     private var tileSize = 0f
+    private var panning = false
+    private var lastFocusX = 0f
+    private var lastFocusY = 0f
     private var lastBuiltTile: Pair<Int, Int>? = null
     
     private val scaleDetector = ScaleGestureDetector(context, ScaleListener())
-    private val gestureListener = GestureListener()
-    private val gestureDetector = GestureDetector(context, gestureListener)
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
@@ -53,18 +52,59 @@ class MapView(context: Context) : View(context) {
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         scaleDetector.onTouchEvent(event)
-        // Build mode: drag paints tiles. Move mode: drag pans. Pinch always zooms.
-        if (buildEnabled && !scaleDetector.isInProgress) {
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> { buildAt(event); return true }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    lastBuiltTile = null; performClick(); return true
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                lastBuiltTile = null
+                buildAt(event.x, event.y)
+            }
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                panning = true
+                lastBuiltTile = null
+                lastFocusX = focusX(event)
+                lastFocusY = focusY(event)
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (event.pointerCount >= 2) {
+                    val fx = focusX(event)
+                    val fy = focusY(event)
+                    panX += fx - lastFocusX
+                    panY += fy - lastFocusY
+                    lastFocusX = fx
+                    lastFocusY = fy
+                    clampPan()
+                    invalidate()
+                } else if (!panning) {
+                    buildAt(event.x, event.y)
                 }
             }
-        } else {
-            gestureDetector.onTouchEvent(event)
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                panning = false
+                lastBuiltTile = null
+                performClick()
+            }
         }
         return true
+    }
+
+    private fun focusX(e: MotionEvent): Float {
+        var s = 0f
+        for (i in 0 until e.pointerCount) s += e.getX(i)
+        return s / e.pointerCount
+    }
+
+    private fun focusY(e: MotionEvent): Float {
+        var s = 0f
+        for (i in 0 until e.pointerCount) s += e.getY(i)
+        return s / e.pointerCount
+    }
+
+    private fun buildAt(px: Float, py: Float) {
+        val tileX = (((px - panX) / scale) / tileSize).toInt().coerceIn(0, cols - 1)
+        val tileY = (((py - panY) / scale) / tileSize).toInt().coerceIn(0, rows - 1)
+        if (lastBuiltTile?.let { it.first == tileX && it.second == tileY } != true) {
+            lastBuiltTile = Pair(tileX, tileY)
+            onTileTap?.invoke(tileX, tileY)
+        }
     }
 
     private fun clampPan() {
@@ -83,21 +123,7 @@ class MapView(context: Context) : View(context) {
         }
     }
 
-    private fun convertToTile(e: MotionEvent): Pair<Int, Int> {
-        val worldX = (e.x - panX) / scale
-        val worldY = (e.y - panY) / scale
-        val tileX = (worldX / tileSize).toInt().coerceIn(0, cols - 1)
-        val tileY = (worldY / tileSize).toInt().coerceIn(0, rows - 1)
-        return Pair(tileX, tileY)
-    }
 
-    private fun buildAt(event: MotionEvent) {
-        val (tileX, tileY) = convertToTile(event)
-        if (lastBuiltTile?.let { it.first == tileX && it.second == tileY } != true) {
-            lastBuiltTile = Pair(tileX, tileY)
-            onTileTap?.invoke(tileX, tileY)
-        }
-    }
 
     override fun onDraw(canvas: Canvas) {
         tileSize = width.toFloat() / cols
@@ -123,25 +149,14 @@ class MapView(context: Context) : View(context) {
     }
 
     private inner class ScaleListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {
-        override fun onScale(detector: ScaleGestureDetector): Boolean {
-            scale = (scale * detector.scaleFactor).coerceIn(1f, 8f)
+        override fun onScale(d: ScaleGestureDetector): Boolean {
+            val newScale = (scale * d.scaleFactor).coerceIn(1f, 8f)
+            val f = newScale / scale
+            panX = d.focusX - (d.focusX - panX) * f
+            panY = d.focusY - (d.focusY - panY) * f
+            scale = newScale
             clampPan()
             invalidate()
-            return true
-        }
-    }
-
-    private inner class GestureListener : GestureDetector.SimpleOnGestureListener() {
-        override fun onScroll(e1: MotionEvent?, e2: MotionEvent, dx: Float, dy: Float): Boolean {
-            panX -= dx
-            panY -= dy
-            clampPan()
-            invalidate()
-            return true
-        }
-
-        override fun onSingleTapUp(e: MotionEvent): Boolean {
-            performClick()
             return true
         }
     }
