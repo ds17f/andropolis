@@ -113,7 +113,7 @@ class MainActivity : AppCompatActivity() {
     internal var lastReportYear = -1
     internal var lastReportFunds = -1        // for the annual-report funds delta
     internal var lastReportApproval = -1     // for the annual-report approval delta
-    internal var minimapNav = false          // Settings: minimap navigation mode
+    internal var minimapNav = true           // Settings (default on): minimap navigation mode
     internal var autoGoto = true             // Settings: jump the map to events as they happen
     internal val navZoom = 5f                 // fixed zoom when minimap navigation is on
     internal val eventBuf = IntArray(9)
@@ -255,7 +255,7 @@ class MainActivity : AppCompatActivity() {
         mapView.onUserNavigate = { viewBeforeJump = null }
         idleToMove = prefs.getBoolean("idleToMove", true)
         ui.postDelayed(idleCheck, 1000)
-        minimapNav = prefs.getBoolean("minimapNav", false)
+        minimapNav = prefs.getBoolean("minimapNav", true)       // minimap navigation is the default
         autoGoto = prefs.getBoolean("autoGoto", true)
         applyMinimapMode()
 

@@ -202,7 +202,8 @@ class MapView(context: Context) : View(context) {
             MotionEvent.ACTION_MOVE -> {
                 if (refocus) {
                     lastFocusX = focusX(event); lastFocusY = focusY(event); refocus = false
-                } else if ((event.pointerCount >= 2 || moveMode) && !navLocked) {
+                } else if ((event.pointerCount >= 2 && !navLocked) || (moveMode && event.pointerCount == 1)) {
+                    // two fingers pan (not in minimap mode); Move pans with one finger in every mode
                     if (moveMode && event.pointerCount == 1 && !panning) {
                         // one-finger pan starts after a small slop, so a tap stays a tap
                         if (kotlin.math.hypot(event.x - lastFocusX, event.y - lastFocusY) < 12f) return true
