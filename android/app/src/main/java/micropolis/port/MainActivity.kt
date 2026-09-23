@@ -53,7 +53,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cityTitle: android.widget.TextView
     private lateinit var subtitle: android.widget.TextView
     private lateinit var playPauseBtn: Button
-    private lateinit var speedChip: Button
     private lateinit var overflowBtn: Button
     private lateinit var fundsChip: LinearLayout
     private lateinit var fundsValue: android.widget.TextView
