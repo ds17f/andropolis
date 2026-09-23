@@ -2,8 +2,9 @@ Build and run a city. Zone land for homes, shops and industry, connect it with r
 rail and power, balance the budget, and keep your citizens happy — while fires, floods,
 tornadoes and the occasional monster try to spoil your plans.
 
-This is a native Android port of <b>MicropolisCore</b>, the GPL release of the original
-city simulator by Will Wright. The simulation engine is the original C++ code.
+<b>Andropolis</b> is an open-source Android port of <b>Micropolis</b>, the GPL release of the
+original SimCity city simulator by Will Wright. It uses the MicropolisCore engine: the
+original simulation code, in C++, unchanged.
 
 <b>Features</b>
 <ul>
@@ -17,8 +18,9 @@ city simulator by Will Wright. The simulation engine is the original C++ code.
 <li>No ads, no tracking, no network access</li>
 </ul>
 
-Micropolis is a registered trademark of Micropolis Corporation (Micropolis GmbH) and is used
-here under the Micropolis Public Name License. SimCity is a trademark of Electronic Arts; this
-app is not affiliated with or endorsed by Electronic Arts.
+Micropolis is a registered trademark of Micropolis Corporation (Micropolis GmbH), named here
+only to describe where this port comes from, under the Micropolis Public Name License.
+SimCity is a trademark of Electronic Arts. Andropolis is not affiliated with or endorsed by
+Micropolis GmbH or Electronic Arts.
 
-Source code (GPL-3.0): https://github.com/ds17f/micropolis-port
+Source code (GPL-3.0): https://github.com/ds17f/andropolis

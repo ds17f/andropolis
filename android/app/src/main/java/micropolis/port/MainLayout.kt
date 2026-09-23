@@ -34,7 +34,7 @@ internal fun MainActivity.buildLayout() {
         elevation = dp(4).toFloat()
     }
     toolbar = com.google.android.material.appbar.MaterialToolbar(this).apply {
-        title = "Micropolis"
+        title = "Andropolis"
         setSubtitleTextAppearance(context, com.google.android.material.R.style.TextAppearance_Material3_BodyMedium)
         setTitleTextColor(0xFFEEF2F6.toInt()); setSubtitleTextColor(0xFF9AA7B4.toInt())
         menu.add(0, R.id.action_play_pause, 0, "Pause").setIcon(R.drawable.ic_pause)

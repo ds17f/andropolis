@@ -59,7 +59,7 @@ internal fun MainActivity.promptCityName(isFirst: Boolean, onDismiss: (() -> Uni
         .setTitle(if (isFirst) "Name your city" else "Rename city")
         .setView(input)
         .setPositiveButton("OK") { _, _ ->
-            val name = input.text.toString().trim().ifEmpty { "Micropolis" }
+            val name = input.text.toString().trim().ifEmpty { "My City" }
             cityName = name
             prefs.edit().putString("cityName", name).apply()
             toolbar.title = name

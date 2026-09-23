@@ -1,32 +1,28 @@
-# Releasing Micropolis
+# Releasing Andropolis
 
 This document tells you how to publish the app on Google Play and on F-Droid.
 Part 1 is a one-time setup. Part 2 is the procedure for each release.
 
-The application ID is `io.github.ds17f.micropolis`. You cannot change it after
+The application ID is `io.github.ds17f.andropolis`. You cannot change it after
 the first publication.
 
 ## Part 1: One-time setup
 
-### 1.1 Get permission to use the name
+### 1.1 Name and attribution
 
-"Micropolis" is a registered trademark of Micropolis GmbH. The Micropolis Public
-Name License permits the name for non-commercial use with attribution. The
-license does not permit the name in marketing material without written
-permission. A store listing can be marketing material.
+The app name is **Andropolis**. The name is not a trademark of another company.
 
-1. Send a request to Micropolis GmbH (<https://www.micropolis.com>). Ask for
-   permission to use the name "Micropolis" in the Google Play and F-Droid
-   listings for this free, open-source port.
-2. Keep the answer with the project records.
-3. If you do not get permission, change the name in these places before the
-   first publication:
-   - `android/app/src/main/AndroidManifest.xml` (`android:label`)
-   - `fastlane/metadata/android/en-US/title.txt`
-   - `fdroid/io.github.ds17f.micropolis.yml` (`AutoName`)
+The app is a port of Micropolis. "Micropolis" is a registered trademark of Micropolis
+GmbH, and "SimCity" is a trademark of Electronic Arts. Obey these rules in the app, in
+the store listings, and on the web pages:
 
-Do not use a name that is similar to "SimCity". Electronic Arts owns that
-trademark.
+- Use "Micropolis" only to tell where the port comes from. Do not use it as the name of
+  the app.
+- Keep the attribution text. It is in the store description
+  (`fastlane/metadata/android/en-US/full_description.txt`) and in How to play > About
+  (`android/app/src/main/assets/manual/tips.html`).
+- Do not use "SimCity", or a name that is similar to it.
+- Do not say that Micropolis GmbH or Electronic Arts endorse the app.
 
 ### 1.2 Make the upload key
 
@@ -65,7 +61,7 @@ to Google Play.
 ### 1.4 Set up Google Play
 
 1. In the Play Console, make a new app. Use the package name
-   `io.github.ds17f.micropolis`.
+   `io.github.ds17f.andropolis`.
 2. Fill in the store listing. Use the text and the images in
    `fastlane/metadata/android/en-US/`.
 3. Fill in the content rating, the data safety form, and the target audience.
@@ -122,11 +118,11 @@ other.
 
 1. Make a release tag (Part 2). F-Droid needs a tag to build.
 2. Fork <https://gitlab.com/fdroid/fdroiddata>.
-3. Copy `fdroid/io.github.ds17f.micropolis.yml` to
-   `metadata/io.github.ds17f.micropolis.yml` in your fork.
+3. Copy `fdroid/io.github.ds17f.andropolis.yml` to
+   `metadata/io.github.ds17f.andropolis.yml` in your fork.
 4. Update `versionName`, `versionCode`, `commit`, `CurrentVersion`, and
    `CurrentVersionCode` to the values of the tag.
-5. Run `fdroid lint` and `fdroid build -v -l io.github.ds17f.micropolis` if you
+5. Run `fdroid lint` and `fdroid build -v -l io.github.ds17f.andropolis` if you
    have the F-Droid tools. If you do not have them, the CI of the merge request
    does these checks.
 6. Open a merge request. Answer the questions of the reviewers.
@@ -149,8 +145,7 @@ After the first merge, F-Droid finds new tags automatically
 
 ## Checklist before the first publication
 
-- [ ] Permission from Micropolis GmbH for the name, or a new name in all three
-      places (1.1).
+- [ ] Attribution text is in the store description and in How to play > About (1.1).
 - [ ] Upload keystore made and kept safe (1.2).
 - [ ] GitHub secrets added (1.3).
 - [ ] Play Console app made, first AAB uploaded manually, service account added

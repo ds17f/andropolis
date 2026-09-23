@@ -66,7 +66,7 @@ jobs:
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: io.github.ds17f.micropolis
+          packageName: io.github.ds17f.andropolis
           releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
           track: internal
           status: completed

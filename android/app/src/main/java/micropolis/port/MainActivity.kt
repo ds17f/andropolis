@@ -56,10 +56,10 @@ class MainActivity : AppCompatActivity() {
     internal val autosavePath by lazy { java.io.File(filesDir, "autosave.cty").absolutePath }
     internal val prefs by lazy { getSharedPreferences("micropolis", MODE_PRIVATE) }
     internal fun sanitize(name: String) = name.trim().replace(Regex("[^A-Za-z0-9 _-]"), "").ifEmpty { "City" }
-    internal var cityName: String = "Micropolis"
+    internal var cityName: String = "My City"
     @Volatile internal var cityReady = false      // true once a city exists (guard autosave)
     internal var lastAutosaveMs = 0L          // internal resume file (autosave.cty), every 30 s
-    internal var lastPublicAutosaveMs = 0L    // timestamped autosave in Documents/Micropolis, every 5 min
+    internal var lastPublicAutosaveMs = 0L    // timestamped autosave in Documents/Andropolis, every 5 min
     internal var pickerResume: () -> Unit = {}
     internal var disasterFreq = 2                                  // 0 Off, 1 Rare, 2 Normal, 3 Frequent
     internal val disasterFreqNames = arrayOf("Off", "Rare", "Normal", "Frequent")
@@ -193,7 +193,7 @@ class MainActivity : AppCompatActivity() {
         java.io.File(filesDir, "undo").deleteRecursively()   // old whole-city undo snapshots (pre-052)
 
         // Saves used to live in private storage (filesDir/city.cty, then filesDir/cities/).
-        // Copy them once into the public Documents/Micropolis folder; leave the originals.
+        // Copy them once into the public Documents/Andropolis folder; leave the originals.
         if (!prefs.getBoolean("savesInDocuments", false)) {
             try {
                 val legacy = java.io.File(filesDir, "city.cty")
@@ -202,7 +202,7 @@ class MainActivity : AppCompatActivity() {
                 java.io.File(filesDir, "cities").listFiles { f: java.io.File -> f.name.endsWith(".cty") }
                     ?.forEach { CitySaves.writePublic(this, it, it.name) }
                 prefs.edit().putBoolean("savesInDocuments", true).apply()
-            } catch (e: Exception) { android.util.Log.w("Micropolis", "save migration failed", e) }
+            } catch (e: Exception) { android.util.Log.w("Andropolis", "save migration failed", e) }
         }
 
         // Create sim thread with handler
@@ -268,7 +268,7 @@ class MainActivity : AppCompatActivity() {
                 MicropolisNative.loadCity(handle, autosavePath)
                 cityReady = true
                 ui.post {
-                    cityName = prefs.getString("cityName", "Micropolis") ?: "Micropolis"
+                    cityName = prefs.getString("cityName", "My City") ?: "My City"
                     toolbar.title = cityName
                 }
             } else {

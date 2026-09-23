@@ -11,7 +11,7 @@ android {
     defaultConfig {
         // Permanent store identity. The Kotlin package (namespace) stays micropolis.port:
         // the JNI symbol names depend on it.
-        applicationId = "io.github.ds17f.micropolis"
+        applicationId = "io.github.ds17f.andropolis"
         minSdk = 24
         targetSdk = 35
         // Bumped by scripts/release.sh; F-Droid reads these literals at each tag.

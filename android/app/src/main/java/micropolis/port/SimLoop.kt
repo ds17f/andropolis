@@ -19,14 +19,14 @@ import androidx.appcompat.app.AppCompatActivity
 // The sim-thread tick loop (30 fps), autosaves, engine events and the message log.
 // Extension functions on MainActivity; state lives in MainActivity.kt.
 
-/** Sim thread: write a timestamped autosave of the current city into Documents/Micropolis. */
+/** Sim thread: write a timestamped autosave of the current city into Documents/Andropolis. */
 internal fun MainActivity.publicAutosave() {
     lastPublicAutosaveMs = android.os.SystemClock.uptimeMillis()
     MicropolisNative.getStats(handle, statsBuf)
     val tmp = CitySaves.tempFile(this)
     MicropolisNative.saveCity(handle, tmp.absolutePath)
     try { CitySaves.writeAutosave(this, tmp, sanitize(cityName), statsBuf[4], statsBuf[5]) }
-    catch (e: Exception) { android.util.Log.w("Micropolis", "autosave failed", e) }
+    catch (e: Exception) { android.util.Log.w("Andropolis", "autosave failed", e) }
 }
 
 internal fun MainActivity.logMessage(text: String, x: Int, y: Int) {

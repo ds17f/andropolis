@@ -10,7 +10,7 @@
 
     <application
         android:allowBackup="true"
-        android:label="Micropolis"
+        android:label="Andropolis"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"

@@ -1,40 +1,67 @@
-# Micropolis Port (Android)
+# Andropolis
 
-A native **Android** port of Micropolis (the open-source SimCity Classic), built on
-the modern **[MicropolisCore](https://github.com/SimHacker/MicropolisCore)** C++
-engine. The engine is compiled with the Android NDK and driven from Kotlin over a
-thin C ABI + JNI — no rewrite of the simulation.
+Andropolis is an open-source Android port of **Micropolis**, the GPL release of the
+original SimCity city simulator by Will Wright. The simulation is the
+**[MicropolisCore](https://github.com/SimHacker/MicropolisCore)** C++ engine. The Android
+NDK compiles the engine, and Kotlin drives it through a small C ABI and JNI. The port
+does not rewrite the simulation.
 
-Current state: generates a city and runs the sim, real tile graphics, pinch-zoom /
-pan, a tool bar (roads, zones, bulldozer…), and a funds/date/pop/score HUD.
+## Features
 
-## Install on a phone
+- The full classic simulation: zones, traffic, pollution, crime, land value, budget,
+  and the city evaluation.
+- The 8 original scenarios and 23 sample cities.
+- New maps with terrain choices: trees, lakes, rivers, and islands.
+- Touch controls: draw roads and power lines, place buildings with a preview, and undo
+  each build.
+- Overlays, graphs, messages, the opinion poll, and the annual report.
+- Background play (optional): the city continues while the app is closed. The app
+  sends a notification when an event occurs.
+- Saves are plain `.cty` files in `Documents/Andropolis`.
+- No ads, no tracking, and no network access.
 
-1. Open the [**Releases**](../../releases) page on your phone.
-2. Download the `.apk` from the latest release.
-3. Open it; allow "install from unknown sources" if prompted.
+## Install
 
-The APK is a debug build (signed with the Android debug key), which is fine for
-sideloading.
+Download the APK from the [Releases](../../releases) page, then open it on the phone.
+Android asks for permission to install apps from this source.
 
-## Build from source
+Releases on Google Play and F-Droid will follow. `RELEASING.md` gives the procedure.
 
-Requires the Android SDK + NDK (see `DESIGN.md` for exact versions) and a
-`android/local.properties` with `sdk.dir=...`.
+## Build from the source
+
+You need the Android SDK and NDK (the versions are in `android/app/build.gradle.kts`).
+You also need `android/local.properties` with `sdk.dir=...`.
 
 ```
-make run           # build, boot the emulator (headless), install, launch
-make run-headful   # same, but show the emulator window
-make build         # just build the debug APK
+git clone --recursive https://github.com/ds17f/andropolis.git
+make run           # build, start the emulator (headless), install, and start the app
+make run-headful   # the same, with the emulator window
+make build         # build the debug APK only
 ```
 
-## How this is built
+The engine tests run on the host computer:
 
-Opus (Claude) plans and reviews; a local open-weights model (qwen) does the coding,
-task by task. The method, the architecture, and the C-ABI boundary are documented
-in **`DESIGN.md`**; the working rules are in `CLAUDE.md`.
+```
+cmake -S android -B android/build-host && cmake --build android/build-host -j
+./android/build-host/engine/micropolis_abi_smoke
+./android/build-host/engine/micropolis_determinism
+./android/build-host/engine/micropolis_sprites
+```
 
-## License
+## How the project is made
 
-The Micropolis engine is GPL-3.0 (Electronic Arts / Don Hopkins, via the One Laptop
-Per Child project). See the `MicropolisCore` submodule for its license and terms.
+Claude (Opus) plans and reviews. A local open-weights model (qwen) writes most of the
+code, one task at a time. `DESIGN.md` describes the method, the architecture, and the C
+ABI. `CLAUDE.md` has the working rules.
+
+## License and trademarks
+
+Andropolis is free software under the GNU General Public License version 3 (`LICENSE`),
+with the additional terms of the Micropolis GPL release (`LICENSE-MICROPOLIS.md`). The
+engine comes from MicropolisCore (Electronic Arts, Don Hopkins, and the One Laptop per
+Child project).
+
+Micropolis is a registered trademark of Micropolis Corporation (Micropolis GmbH), named
+here only to describe where this port comes from, under the Micropolis Public Name
+License. SimCity is a trademark of Electronic Arts. Andropolis is not affiliated with or
+endorsed by Micropolis GmbH or Electronic Arts.

@@ -12,17 +12,17 @@ import androidx.activity.result.contract.ActivityResultContracts
 import java.io.File
 
 /**
- * Saves are plain .cty files in the public Documents/Micropolis folder (visible in the Files app).
+ * Saves are plain .cty files in the public Documents/Andropolis folder (visible in the Files app).
  * Load / Save-as go through the system file picker; autosaves are written here directly as
  * `<city>-<gameYear>-<gameMonth>-<yyyyMMdd-HHmmss>.cty`. The engine only reads/writes paths, so picker
  * URIs are staged through a temp file in cacheDir.
  */
 object CitySaves {
-    const val FOLDER = "Micropolis"
+    const val FOLDER = "Andropolis"
     private const val AUTOSAVES_KEPT = 10
     private val autosaveSuffix = Regex("-\\d{1,5}-\\d{2}-\\d{8}-\\d{6}$")
 
-    /** Picker start location: Documents/Micropolis on the primary volume. */
+    /** Picker start location: Documents/Andropolis on the primary volume. */
     private val folderUri: Uri = DocumentsContract.buildDocumentUri(
         "com.android.externalstorage.documents", "primary:Documents/$FOLDER")
 
@@ -54,11 +54,11 @@ object CitySaves {
 
     /** City name for a picked file: display name minus ".cty" and minus any autosave suffix. */
     fun cityNameFor(ctx: Context, uri: Uri): String {
-        var name = "Micropolis"
+        var name = "My City"
         ctx.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
             if (it.moveToFirst()) name = it.getString(0)
         }
-        return name.removeSuffix(".cty").replace(autosaveSuffix, "").ifBlank { "Micropolis" }
+        return name.removeSuffix(".cty").replace(autosaveSuffix, "").ifBlank { "My City" }
     }
 
     /** Write `src` into the saves folder as `<city>-<year>-<month>-<timestamp>.cty`, then prune old ones. */
