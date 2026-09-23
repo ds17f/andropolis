@@ -268,6 +268,8 @@ class MainActivity : AppCompatActivity() {
         sfx = SoundFx(this)
         sfx.enabled = prefs.getBoolean("sound", true)
         sim.post({ tickLoop() })
+        Notifier.ensureChannels(this)
+        handleEventIntent(intent)
     }
 
     // The engine's zone-status values are 1-based indices into these tables (engine data
@@ -292,6 +294,12 @@ class MainActivity : AppCompatActivity() {
             // leaving the app: also keep a timestamped autosave (at most one a minute)
             if (android.os.SystemClock.uptimeMillis() - lastPublicAutosaveMs > 60_000L) publicAutosave()
         }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleEventIntent(intent)
     }
 
     override fun onDestroy() {
