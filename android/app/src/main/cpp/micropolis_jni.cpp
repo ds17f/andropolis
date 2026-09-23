@@ -172,6 +172,19 @@ Java_micropolis_port_MicropolisNative_setFunds(JNIEnv *, jobject, jlong h, jint 
     micropolis_set_funds(eng(h), funds);
 }
 
+JNIEXPORT jlong JNICALL
+Java_micropolis_port_MicropolisNative_getRng(JNIEnv *, jobject, jlong h) {
+    return (jlong) micropolis_get_rng(eng(h));
+}
+
+JNIEXPORT jint JNICALL
+Java_micropolis_port_MicropolisNative_loadCitySeeded(JNIEnv *env, jobject, jlong h, jstring path, jlong rng) {
+    const char *p = env->GetStringUTFChars(path, nullptr);
+    int ok = micropolis_load_city_seeded(eng(h), p, (long long) rng);
+    env->ReleaseStringUTFChars(path, p);
+    return ok;
+}
+
 JNIEXPORT void JNICALL
 Java_micropolis_port_MicropolisNative_setEnableDisasters(JNIEnv *, jobject, jlong h, jint on) {
     micropolis_set_enable_disasters(eng(h), on);

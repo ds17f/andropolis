@@ -73,6 +73,16 @@ object MicropolisNative {
     /** Set the city treasury. Used by undo to refund / re-charge a build. */
     external fun setFunds(handle: Long, funds: Int)
 
+    /** The engine's PRNG state (saved with a background-play anchor; see DESIGN.md 12.5). */
+    external fun getRng(handle: Long): Long
+
+    /**
+     * Load a city for the background timeline: the post-load init uses PRNG state `rng`
+     * instead of a clock seed, so loadCitySeeded + N ticks is the same on every run.
+     * Returns 1 on success.
+     */
+    external fun loadCitySeeded(handle: Long, path: String, rng: Long): Int
+
     /** Turn the engine's own random disasters on (1) or off (0); manual makeDisaster still works. */
     external fun setEnableDisasters(handle: Long, on: Int)
 
