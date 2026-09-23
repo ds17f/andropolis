@@ -114,6 +114,16 @@ Java_micropolis_port_MicropolisNative_getEvaluation(JNIEnv *env, jobject, jlong 
     env->SetIntArrayRegion(dst, 0, 7, t);
 }
 
+JNIEXPORT jint JNICALL
+Java_micropolis_port_MicropolisNative_getProblems(JNIEnv *env, jobject, jlong h, jintArray dst) {
+    if (env->GetArrayLength(dst) < 8) return 0;
+    int ids[4] = {0}, votes[4] = {0};
+    int n = micropolis_get_problems(eng(h), ids, votes, 4);
+    jint t[8] = { ids[0], ids[1], ids[2], ids[3], votes[0], votes[1], votes[2], votes[3] };
+    env->SetIntArrayRegion(dst, 0, 8, t);
+    return n;
+}
+
 JNIEXPORT void JNICALL
 Java_micropolis_port_MicropolisNative_setCityTax(JNIEnv *, jobject, jlong h, jint tax) {
     micropolis_set_city_tax(eng(h), tax);

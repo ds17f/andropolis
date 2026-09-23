@@ -219,7 +219,8 @@ class MainActivity : AppCompatActivity() {
             val ev = IntArray(7); MicropolisNative.getEvaluation(handle, ev)
             val crime = avgOverlay(5); val poll = avgOverlay(3); val land = avgOverlay(4)
             val traffic = avgOverlay(2); val density = avgOverlay(1)
-            ui.post { showCityPanelUI(b, ev, crime, poll, land, traffic, density) }
+            val p = IntArray(8); val np = MicropolisNative.getProblems(handle, p)
+            ui.post { showCityPanelUI(b, ev, crime, poll, land, traffic, density, p, np) }
         }
     }
 
@@ -256,7 +257,54 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showCityPanelUI(b: IntArray, ev: IntArray, crime: Int, poll: Int, land: Int, traffic: Int, density: Int) {
+    private val problemNames = arrayOf("Crime", "Pollution", "Housing", "Taxes", "Traffic", "Unemployment", "Fire")
+    private val problemIcons = arrayOf("🚨", "☁", "🏠", "💰", "🚗", "👷", "🔥")
+
+    /** A horizontal bar split by weights: pairs of (color, weight). */
+    private fun splitBar(vararg parts: Pair<Int, Int>, height: Int = 10): View =
+        LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            background = roundedBg(0x1FFFFFFF, height / 2)
+            clipToOutline = true
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(height)).apply { topMargin = dp(4) }
+            for ((color, w) in parts) addView(View(this@MainActivity).apply {
+                setBackgroundColor(color); layoutParams = LinearLayout.LayoutParams(0, dp(height), w.coerceAtLeast(0).toFloat()) })
+        }
+
+    /** City → Overview: the citizens' poll (approval split and ranked worst problems). */
+    private fun citizenPoll(ev: IntArray, p: IntArray, np: Int): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL; setPadding(0, dp(12), 0, 0)
+        fun muted(t: String, size: Float) = TextView(this@MainActivity).apply { text = t; setTextColor(0xFF7D8B99.toInt()); textSize = size }
+        addView(muted("What citizens say", 11f))
+        addView(TextView(this@MainActivity).apply {
+            text = "Is the mayor doing a good job?"; setTextColor(0xFFEEF2F6.toInt()); textSize = 14f; setPadding(0, dp(6), 0, 0) })
+        val yes = ev[6].coerceIn(0, 100)
+        addView(splitBar(0xFF4CAF50.toInt() to yes, 0xFFE5533D.toInt() to 100 - yes))
+        addView(LinearLayout(this@MainActivity).apply {
+            orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(2), 0, dp(10))
+            addView(TextView(this@MainActivity).apply { text = "Yes $yes%"; setTextColor(0xFF4CAF50.toInt()); textSize = 12f
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) })
+            addView(TextView(this@MainActivity).apply { text = "No ${100 - yes}%"; setTextColor(0xFFE5533D.toInt()); textSize = 12f })
+        })
+        addView(TextView(this@MainActivity).apply {
+            text = "Worst problems"; setTextColor(0xFFEEF2F6.toInt()); textSize = 14f })
+        if (np == 0) addView(muted("No survey yet — check back after the next evaluation.", 13f).apply { setPadding(0, dp(6), 0, 0) })
+        for (i in 0 until np) {
+            val id = p[i]; val v = p[4 + i].coerceIn(0, 100)
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(8), 0, 0)
+                addView(TextView(this@MainActivity).apply {
+                    text = "${problemIcons.getOrElse(id) { "•" }}  ${problemNames.getOrElse(id) { "?" }}"
+                    setTextColor(0xFF9AA7B4.toInt()); textSize = 13f
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) })
+                addView(TextView(this@MainActivity).apply { text = "$v%"; setTextColor(0xFFEEF2F6.toInt()); textSize = 13f
+                    setTypeface(null, android.graphics.Typeface.BOLD) })
+            })
+            addView(splitBar(0xFFF5A623.toInt() to v, 0 to 100 - v, height = 4))
+        }
+    }
+
+    private fun showCityPanelUI(b: IntArray, ev: IntArray, crime: Int, poll: Int, land: Int, traffic: Int, density: Int, p: IntArray, np: Int) {
         fun row(k: String, v: String) = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(7), 0, dp(7))
             addView(TextView(this@MainActivity).apply { text = k; setTextColor(0xFF9AA7B4.toInt()); textSize = 14f
@@ -282,6 +330,7 @@ class MainActivity : AppCompatActivity() {
                     addView(statBar("Crime", crime)); addView(statBar("Pollution", poll))
                     addView(statBar("Land value", land)); addView(statBar("Traffic", traffic))
                     addView(statBar("Population density", density))
+                    addView(citizenPoll(ev, p, np))
                 }
             },
             PanelTab("Budget", "💰") {
@@ -1440,7 +1489,10 @@ class MainActivity : AppCompatActivity() {
         sim.post {
             val ev = IntArray(7); MicropolisNative.getEvaluation(handle, ev)
             val b = IntArray(12); MicropolisNative.getBudget(handle, b)
+            val p = IntArray(8); val np = MicropolisNative.getProblems(handle, p)
             ui.post {
+                val concerns = (0 until minOf(np, 2)).joinToString(", ") {
+                    "${problemIcons.getOrElse(p[it]) { "•" }} ${problemNames.getOrElse(p[it]) { "?" }} ${p[4 + it]}%" }
                 fun signed(n: Int) = if (n >= 0) "+$n" else "$n"
                 val fundsDelta = if (lastReportFunds >= 0) b[0] - lastReportFunds else 0
                 val apprDelta = if (lastReportApproval >= 0) ev[6] - lastReportApproval else 0
@@ -1449,7 +1501,8 @@ class MainActivity : AppCompatActivity() {
                     "Class" to cityClassNames.getOrElse(ev[2]) { "?" },
                     "Population" to "${ev[3]} (Δ ${ev[4]})", "Score" to "${ev[0]} (Δ ${ev[1]})",
                     "Approval" to "${ev[6]}% (Δ ${signed(apprDelta)}%)",
-                    "Funds" to "$${b[0]} (Δ ${signed(fundsDelta)})", "Tax" to "${b[1]}%"),
+                    "Funds" to "$${b[0]} (Δ ${signed(fundsDelta)})", "Tax" to "${b[1]}%")
+                    + (if (np > 0) listOf("Top concerns" to concerns) else emptyList()),
                     actionLabel = "Continue", subtitle = "Year $year",
                     onAction = { if (resume && speed == 0) { speed = lastRunSpeed; updatePlayPauseText(); updateSpeedChipText() } })
             }

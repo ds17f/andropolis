@@ -38,6 +38,13 @@ object MicropolisNative {
      */
     external fun getEvaluation(handle: Long, dst: IntArray)
 
+    /**
+     * Citizens' worst problems from the last evaluation, ranked. Fills dst (length >= 8):
+     * dst[0..3] = problem ids (0 Crime, 1 Pollution, 2 Housing, 3 Taxes, 4 Traffic,
+     * 5 Unemployment, 6 Fire), dst[4..7] = % of citizens naming each. Returns the count (0..4).
+     */
+    external fun getProblems(handle: Long, dst: IntArray): Int
+
     /** Save the city to `path`. Returns 1 on success, 0 on failure. */
     external fun saveCity(handle: Long, path: String): Int
     /** Load a city from `path`. Returns 1 on success, 0 on failure. */

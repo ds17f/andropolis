@@ -199,6 +199,18 @@ void micropolis_get_evaluation(const MicropolisEngine *e, MicropolisEvaluation *
     out->assessed_value = int(s->cityAssessedValue); out->approval = int(s->cityYes);
 }
 
+int micropolis_get_problems(const MicropolisEngine *e, int *ids, int *votes, int n) {
+    if (!e || !ids || !votes || n <= 0) return 0;
+    Micropolis *s = e->sim;
+    int count = s->countProblems();
+    if (count > n) count = n;
+    for (int i = 0; i < count; i++) {
+        ids[i] = s->getProblemNumber(i);
+        votes[i] = s->getProblemVotes(i);
+    }
+    return count;
+}
+
 int micropolis_do_tool(MicropolisEngine *e, int tool, int x, int y) {
     if (!e) {
         return MICROPOLIS_TOOL_FAILED;
