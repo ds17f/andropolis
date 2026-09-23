@@ -38,15 +38,55 @@ class MainActivity : AppCompatActivity() {
     private val ticksPerFrame = intArrayOf(0, 1, 1, 1, 7) // Turbo ≈ 210 steps/s like the old Fast
     private val taxRates = intArrayOf(0, 5, 7, 9, 12, 15, 20)
     private var taxIdx = 2   // start at 7%
-    private val savePath by lazy { java.io.File(filesDir, "city.cty").absolutePath }
     private val autosavePath by lazy { java.io.File(filesDir, "autosave.cty").absolutePath }
     private val prefs by lazy { getSharedPreferences("micropolis", MODE_PRIVATE) }
-    private val citiesDir by lazy { java.io.File(filesDir, "cities").apply { mkdirs() } }
     private fun sanitize(name: String) = name.trim().replace(Regex("[^A-Za-z0-9 _-]"), "").ifEmpty { "City" }
-    private fun cityFile(name: String) = java.io.File(citiesDir, "$name.cty")
     private var cityName: String = "Micropolis"
     @Volatile private var cityReady = false      // true once a city exists (guard autosave)
-    private var lastAutosaveMs = 0L
+    private var lastAutosaveMs = 0L          // internal resume file (autosave.cty), every 30 s
+    private var lastPublicAutosaveMs = 0L    // timestamped autosave in Documents/Micropolis, every 5 min
+    private var pickerResume: () -> Unit = {}
+
+    // Load / Save-as go through the system file picker (see CitySaves).
+    private val loadPicker = registerForActivityResult(CitySaves.OpenCity()) { uri ->
+        if (uri != null) {
+            val name = CitySaves.cityNameFor(this, uri)
+            cityName = name; prefs.edit().putString("cityName", name).apply(); cityTitle.text = name
+            sim.post {
+                val tmp = CitySaves.tempFile(this)
+                CitySaves.copyFromUri(this, uri, tmp)
+                MicropolisNative.loadCity(handle, tmp.absolutePath)
+                MicropolisNative.saveCity(handle, autosavePath)   // make restore-on-launch match
+                ui.post { resetHistory(); commitSnapshot() }       // fresh undo history for the loaded city
+            }
+            showBanner("Loaded “$name”")
+        }
+        pickerResume()
+    }
+    private val savePicker = registerForActivityResult(CitySaves.SaveCity()) { uri ->
+        if (uri != null) {
+            val name = CitySaves.cityNameFor(this, uri)
+            cityName = name; prefs.edit().putString("cityName", name).apply(); cityTitle.text = name
+            sim.post {
+                val tmp = CitySaves.tempFile(this)
+                MicropolisNative.saveCity(handle, tmp.absolutePath)
+                CitySaves.copyToUri(this, tmp, uri)
+                MicropolisNative.saveCity(handle, autosavePath)
+            }
+            showBanner("Saved “$name”")
+        }
+        pickerResume()
+    }
+
+    /** Sim thread: write a timestamped autosave of the current city into Documents/Micropolis. */
+    private fun publicAutosave() {
+        lastPublicAutosaveMs = android.os.SystemClock.uptimeMillis()
+        MicropolisNative.getStats(handle, statsBuf)
+        val tmp = CitySaves.tempFile(this)
+        MicropolisNative.saveCity(handle, tmp.absolutePath)
+        try { CitySaves.writeAutosave(this, tmp, sanitize(cityName), statsBuf[4], statsBuf[5]) }
+        catch (e: Exception) { android.util.Log.w("Micropolis", "autosave failed", e) }
+    }
     private val snapDir by lazy { java.io.File(filesDir, "undo").apply { mkdirs() } }
     private val history = mutableListOf<String>()   // snapshot file paths, oldest..newest
     private var cursor = -1                          // index of the current live state
@@ -579,12 +619,17 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Pre-043 saves lived in the single slot filesDir/city.cty; copy it into cities/ once.
-        val legacy = java.io.File(filesDir, "city.cty")
-        if (legacy.exists() && !prefs.getBoolean("migratedLegacySave", false)) {
-            val dest = cityFile("Saved city")
-            if (!dest.exists()) legacy.copyTo(dest)
-            prefs.edit().putBoolean("migratedLegacySave", true).apply()
+        // Saves used to live in private storage (filesDir/city.cty, then filesDir/cities/).
+        // Copy them once into the public Documents/Micropolis folder; leave the originals.
+        if (!prefs.getBoolean("savesInDocuments", false)) {
+            try {
+                val legacy = java.io.File(filesDir, "city.cty")
+                val alreadyCopied = java.io.File(filesDir, "cities/Saved city.cty").exists()   // task 050 did it
+                if (legacy.exists() && !alreadyCopied) CitySaves.writePublic(this, legacy, "Saved city.cty")
+                java.io.File(filesDir, "cities").listFiles { f: java.io.File -> f.name.endsWith(".cty") }
+                    ?.forEach { CitySaves.writePublic(this, it, it.name) }
+                prefs.edit().putBoolean("savesInDocuments", true).apply()
+            } catch (e: Exception) { android.util.Log.w("Micropolis", "save migration failed", e) }
         }
 
         // Create sim thread with handler
@@ -696,8 +741,8 @@ class MainActivity : AppCompatActivity() {
                             }
                             handedOff = true
                         }
-                        "Save city" -> { handedOff = true; showSaveDialog(resume) }
-                        "Load city" -> { handedOff = true; showLoadDialog(resume) }
+                        "Save city" -> { handedOff = true; pickerResume = resume; savePicker.launch("${sanitize(cityName)}.cty") }
+                        "Load city" -> { handedOff = true; pickerResume = resume; loadPicker.launch(arrayOf("*/*")) }
                         else -> if (item.title.toString().startsWith("Annual report")) {
                             annualReportEnabled = !annualReportEnabled
                             prefs.edit().putBoolean("annualReport", annualReportEnabled).apply()
@@ -1232,6 +1277,8 @@ class MainActivity : AppCompatActivity() {
                 lastAutosaveMs = now
                 MicropolisNative.saveCity(handle, autosavePath)
             }
+            if (lastPublicAutosaveMs == 0L) lastPublicAutosaveMs = now
+            if (now - lastPublicAutosaveMs > 5 * 60_000L) publicAutosave()
         }
         // Set the engine's frame-skip mode every frame: loads/undo/generate reset it to Fast,
         // and this runs on the sim thread after them. Pause = 0 ticks, engine stays running.
@@ -1341,75 +1388,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showSaveDialog(onDismiss: (() -> Unit)? = null) {
-        val input = android.widget.EditText(this).apply { setText(cityName); setSingleLine() }
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("Save city as")
-            .setView(input)
-            .setPositiveButton("Save") { _, _ ->
-                val name = sanitize(input.text.toString())
-                val path = cityFile(name).absolutePath
-                cityName = name; prefs.edit().putString("cityName", name).apply(); cityTitle.text = name
-                sim.post { MicropolisNative.saveCity(handle, path); MicropolisNative.saveCity(handle, autosavePath) }
-                showBanner("Saved “$name”")
-            }
-            .setNegativeButton("Cancel", null)
-            .create().also { dialog ->
-                dialog.setOnDismissListener { onDismiss?.invoke() }
-                dialog.show()
-            }
-    }
-
-    private fun showLoadDialog(onDismiss: (() -> Unit)? = null) {
-        val files = citiesDir.listFiles { f: java.io.File -> f.name.endsWith(".cty") }
-            ?.sortedWith(compareBy { it.name })
-        val fileList = files?.toTypedArray() ?: emptyArray()
-        val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(this)
-        val col = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(16), dp(20), dp(24))
-            setBackgroundColor(0xFF12161C.toInt())
-        }
-        col.addView(TextView(this).apply {
-            text = "Load city"; setTextColor(0xFFEEF2F6.toInt()); textSize = 18f
-            setTypeface(null, android.graphics.Typeface.BOLD); setPadding(0, 0, 0, dp(8))
-        })
-        if (fileList.isEmpty()) {
-            col.addView(TextView(this).apply { text = "No saved cities yet."; setTextColor(0xFF9AA7B4.toInt()); setPadding(0, dp(8), 0, dp(8)) })
-        }
-        var dismissedInternally = false
-        for (f in fileList) {
-            val name = f.name.removeSuffix(".cty")
-            col.addView(LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL
-                background = roundedBg(0x0DFFFFFF, 12); setPadding(dp(14), dp(12), dp(8), dp(12))
-                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) }
-                addView(TextView(this@MainActivity).apply {
-                    text = name; setTextColor(0xFFEEF2F6.toInt()); textSize = 15f
-                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                })
-                addView(TextView(this@MainActivity).apply {
-                    text = "✕"; setTextColor(0xFF9AA7B4.toInt()); textSize = 16f; setPadding(dp(12), 0, dp(12), 0)
-                    setOnClickListener { f.delete(); sheet.dismiss(); dismissedInternally = true; showLoadDialog(onDismiss) }   // refresh
-                })
-                setOnClickListener {
-                    val path = f.absolutePath
-                    cityName = name; prefs.edit().putString("cityName", name).apply(); cityTitle.text = name
-                    sim.post {
-                        MicropolisNative.loadCity(handle, path)
-                        MicropolisNative.saveCity(handle, autosavePath)   // make restore-on-launch match
-                        ui.post { resetHistory(); commitSnapshot() }       // fresh undo history for the loaded city
-                    }
-                    showBanner("Loaded “$name”")
-                    sheet.dismiss()
-                }
-            })
-        }
-        val sv = ScrollView(this); sv.addView(col); sheet.setContentView(sv)
-        sheet.setOnDismissListener { if (!dismissedInternally) onDismiss?.invoke() }
-        sheet.show()
-    }
-
     /** One Settings row: bold title, muted description, and a switch on the right. */
     private fun settingsToggle(title: String, desc: String, checked: Boolean, onChange: (Boolean) -> Unit): View =
         LinearLayout(this).apply {
@@ -1455,7 +1433,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        if (cityReady && handle != 0L) sim.post { MicropolisNative.saveCity(handle, autosavePath) }
+        if (cityReady && handle != 0L) sim.post {
+            MicropolisNative.saveCity(handle, autosavePath)
+            // leaving the app: also keep a timestamped autosave (at most one a minute)
+            if (android.os.SystemClock.uptimeMillis() - lastPublicAutosaveMs > 60_000L) publicAutosave()
+        }
     }
 
     override fun onDestroy() {
