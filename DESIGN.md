@@ -316,3 +316,206 @@ this repo. We reuse its build harness (Gradle/AGP/Kotlin versions, Makefile
 shape) but keep the projects separate. **Decision (2026-09-22): the user is ditching
 `micropolis-android` in favor of this repo.** This C++/NDK port is the active
 path; the Kotlin repo stays separate and is not invested in further.
+
+---
+
+## 12. Ambient background simulation & notifications (epic)
+
+Design doc for the "idle/ambient" mobile feature. Status: **design** (2026-09-22).
+This section is the plan; nothing here is built yet.
+
+### 12.1 Vision
+
+Turn Micropolis into an ambient game. You set a **pace** — e.g. *up to 10 game-years
+per real hour* — then leave the app. The city keeps advancing in the background. When
+something worth your attention happens (a fire, a monster, a flood, a meltdown, a bad
+traffic jam) or a chosen period elapses (each year, or the whole span), the phone
+**notifies** you and the sim **pauses** until you come back. Tapping the notification
+opens the app **at the exact moment the event happened**, zoomed to where it happened.
+Then you fix things and let it roll again.
+
+The feel we want: notifications that pop when the city actually needs you — "not so
+random" — not a fixed 15-minute drip.
+
+### 12.2 The core idea: game-time is a deterministic function of real-time
+
+Define a **rate** `R` (game-ticks per real-second; the "10 years/hour" is just a
+friendly way to set `R`). At any real time `t`, the city's correct game-time is
+`gameTime(t) = gameTime(t0) + R * (t - t0)`. If the simulation is **deterministic and
+replayable** from a snapshot, then we never need to run continuously in the background:
+we can reconstruct the exact state at any `t` on demand by advancing a snapshot by the
+right number of ticks. This single property is what makes the whole feature cheap.
+
+### 12.3 Why not "just run it continuously" (the battery question)
+
+Two shapes were on the table:
+
+- **(A) Continuous foreground service** — a real Android foreground service ticks the
+  sim in real time in the background, with a permanent "Micropolis is running"
+  notification. Events fire live. Simple mental model. **Cost:** the process stays
+  resident and must wake many times to tick across an hour; it holds off Doze; the
+  persistent notification is always there. Even though each tick is cheap, the
+  *frequency of wakeups* over a long session is what drains battery. Rough order: a
+  few percent of battery per hour of backgrounded play, plus the ever-present
+  notification. Android may also throttle it.
+
+- **(B) Predict-and-schedule (recommended)** — this is exactly the model the user
+  proposed: on backgrounding, **fast-forward a snapshot** to find the next
+  notify-worthy event or period boundary, compute the **real time** it maps to, set a
+  single **exact alarm** for that moment, then throw the fast-forward away. Between now
+  and then we run **zero** background CPU. When the alarm fires we advance the (kept)
+  snapshot to that game-time, fire the notification, save, and pause. **Cost:** one
+  alarm per event — battery impact comparable to a calendar reminder, i.e. negligible.
+
+**Recommendation: B.** It gives the "realtime feel" (the notification lands at the real
+moment the event occurs), the "exact moment on foreground" (we reconstruct state at
+`now`), *and* near-zero battery — precisely because determinism lets us avoid running
+in real time. We do **not** need a continuously-running service. See 12.11 for the one
+safety-net exception.
+
+### 12.4 Architecture: predict-and-schedule
+
+State we persist for the background contract (a small sidecar next to `autosave.cty`):
+- `anchorRealMs` — real timestamp of the last known-good state.
+- `anchorGameTicks` — the city's tick count at that anchor.
+- `rate` — ticks per real-second.
+- `paused` — whether the sim is currently paused awaiting the player.
+
+On **background** (`onPause`/`onStop`), if not paused and background mode is on:
+1. Snapshot the live engine (`saveCity` + **RNG state**, see 12.5).
+2. Fast-forward a *copy* of that snapshot, tick by tick, watching for the first of:
+   (a) a notify-worthy event (from the event queue, 12.6), (b) the next enabled period
+   boundary (year-end, or span-end at the max 10-year horizon).
+3. Let `Δticks` be ticks until that stop. Schedule an **exact alarm** for
+   `anchorRealMs + Δticks / rate` carrying the event descriptor (type + location).
+4. Discard the fast-forward; the anchor snapshot (at "now") is what we keep.
+
+On **alarm fire** (background):
+1. Advance the kept snapshot by the scheduled `Δticks` (deterministic replay →
+   reproduces the same event at the same tick, 12.5). Save it as the new autosave.
+2. Post the notification (type, and a deep-link intent carrying the tile location).
+3. Mark `paused = true`. Do **not** schedule the next alarm — we wait for the player.
+   (Period nudges that are configured *not* to pause instead re-run steps 1–4 of 12.4
+   to arm the next one.)
+
+On **foreground**:
+1. Compute `wantTicks = anchorGameTicks + rate * (now - anchorRealMs)` (clamped to any
+   pending event tick so we never overshoot a paused event).
+2. Advance the engine deterministically to `wantTicks`; cancel the pending alarm.
+3. If arriving because of a notification tap, `centerOnTile` the event location.
+4. Reset the anchor to `now`. The foreground loop then ticks live at `rate`.
+
+### 12.5 Determinism is the linchpin (RNG capture)
+
+Predict-and-schedule only works if replaying a snapshot reproduces the same events at
+the same ticks. Micropolis is deterministic **given its PRNG state**, but the `.cty`
+save format does **not** store the engine's random seed, so a plain load→run diverges.
+**Required engine work:** expose the PRNG state across the C-ABI
+(`micropolis_get_rng` / `micropolis_set_rng`, capturing `Micropolis::nextRandom` and any
+related seed) and snapshot it in the sidecar alongside `.cty`. With RNG capture,
+`load(state)+setRng(seed)+advance(n)` is bit-identical every time.
+
+**Fallback if RNG capture proves infeasible:** drop to a coarser promise — the
+background advances the city and notifies, but the *exact* event tick is best-effort and
+foregrounding lands "close enough" rather than frame-exact. This degrades B toward a
+periodic **WorkManager** catch-up (advance-on-wake). We treat frame-exactness as the
+goal and this as the graceful degradation.
+
+### 12.6 Event system (prerequisite for everything here)
+
+Today the engine runs with `NullCallback`, so the app has no events and no locations.
+This epic (and in-game messages + zoom-to-event generally) needs a real bridge:
+
+- Replace `NullCallback` with a callback that **enqueues** engine events into a
+  C-side ring buffer instead of calling into the JVM (avoids cross-thread JNI upcalls;
+  the sim runs on our own thread and we drain after each tick).
+- New C-ABI: `micropolis_poll_event(out*) -> bool` returning `{type, x, y, extra}`.
+  Map MicropolisCore's messages/sounds (fire reported, tornado/monster sighted, flood,
+  meltdown, traffic, brownout, year-end, etc.) to a stable `MicropolisEventType` enum.
+- Kotlin drains the queue each tick → in-game message banner, sound hooks, and the
+  location used for zoom-to-event and notification deep-links.
+
+This is independently useful (in-game messages, zoom-to-event) even without background
+mode, so it ships **first**.
+
+### 12.7 Components
+
+- **EventBridge** (C-ABI + Kotlin drain) — 12.6.
+- **TimeMapper** — holds `rate`, converts real↔game time, owns the anchor.
+- **Snapshotter** — `.cty` + RNG sidecar; deterministic advance-to-tick helper.
+- **BackgroundScheduler** — `AlarmManager` exact alarms (primary) + a periodic
+  `WorkManager` safety net (12.11); arms/cancels on lifecycle.
+- **Notifier** — notification channels per category, deep-link intents (tile location),
+  tap → open + zoom.
+- **Settings** (off the ⋮ menu) — background on/off, rate, per-event {notify, pause}.
+
+### 12.8 Foreground behavior
+
+When foregrounded, the existing `tickLoop` keeps running but ticks at the configured
+`rate` (the current speed control becomes "off / normal / pace"). Events drained from
+the queue show an in-game message and, if enabled, still pause. No alarms while
+foregrounded.
+
+### 12.9 Notifications, permissions, manifest
+
+- `POST_NOTIFICATIONS` (Android 13+) — request at first enable of the feature.
+- `SCHEDULE_EXACT_ALARM` / `USE_EXACT_ALARM` — exact alarms on Android 12+. Prefer
+  `USE_EXACT_ALARM` (granted by manifest for alarm-clock-style apps) if policy allows,
+  else request `SCHEDULE_EXACT_ALARM`.
+- `RECEIVE_BOOT_COMPLETED` — re-arm the pending alarm after a reboot.
+- One notification channel per category (disaster / period / info) so the user can tune
+  importance in system settings.
+
+### 12.10 Battery analysis (direct answer)
+
+- **B (predict-and-schedule): negligible.** Background CPU between events is zero; the
+  work is one fast-forward burst at backgrounding (well under a second to simulate 10
+  game-years) and one advance+notify at each alarm. Comparable to a reminder app.
+- **A (continuous service): small but real** — a few percent per hour from frequent
+  wakeups + Doze suppression, plus a permanent notification. Only worth it if
+  determinism (12.5) can't be achieved, or if we later want a literally-live background.
+- **Verdict:** B is both the nicer UX and the lighter battery footprint. We build B.
+
+### 12.11 Edge cases
+
+- **Missed/delayed exact alarm (Doze, battery saver):** a low-frequency periodic
+  `WorkManager` (e.g. hourly) acts purely as a **safety net** — it checks whether the
+  pending alarm's time has passed and, if so, catches up and re-arms. This is *not* the
+  continuous service; it does nothing in the common case.
+- **Process death:** all state lives in the autosave + sidecar; on next wake/foreground
+  we recompute from the anchor. The `WorkManager` net and boot receiver re-arm.
+- **Player backgrounds/foregrounds rapidly:** each background re-snapshots and re-arms;
+  each foreground reconstructs to `now`. Idempotent.
+- **Player edits while foregrounded:** resets the anchor; the next background re-derives
+  everything from the new state.
+- **Rate change:** re-anchor at `now` and re-arm.
+
+### 12.12 Settings (off the ⋮ menu)
+
+- Background simulation: on/off.
+- Pace: a small set (e.g. 1 / 5 / 10 game-years per hour) or a slider.
+- Per event type: notify on/off, and pause on/off (default: disasters notify+pause;
+  year-end notify only; span-end notify+pause).
+
+### 12.13 Phased plan (each phase independently shippable)
+
+1. **Event system** (12.6) — engine callback → queue → `poll_event`; in-game message
+   banner; `MapView.centerOnTile` zoom-to-event. *No background yet.* (Opus: C-ABI +
+   RNG capture; qwen: Kotlin drain + banner + zoom.)
+2. **Foreground pacing** — `rate`-based ticking; the pace control in the Simulation
+   panel; event-driven pause.
+3. **Notifications** — channels, permission, post-on-event, tap→open+zoom (works while
+   foregrounded/just-backgrounded first).
+4. **Predict-and-schedule background** (12.4–12.5) — snapshotter, TimeMapper,
+   BackgroundScheduler (exact alarm + WorkManager net), boot receiver.
+5. **Settings** (12.12) and polish.
+
+### 12.14 Open decisions
+
+- **RNG capture feasibility** (12.5) — confirm `Micropolis`'s PRNG is fully captured by
+  a small get/set; this gates frame-exact replay vs. the coarser fallback.
+- **Do period nudges pause?** Proposed: year-end = notify only, span-end = pause.
+  Confirm with playtesting.
+- **Pace granularity** — fixed presets vs. free slider.
+- **Foreground-while-backgrounded overlap** — confirm we always cancel the alarm on
+  foreground so an event can't double-fire.
