@@ -22,7 +22,7 @@ internal fun MainActivity.buildBottomBar(): View {
     }
 
     // Helper to create a bottom bar item
-    fun createBarItem(iconRes: Int, label: String, onClick: () -> Unit): Pair<View, TextView?> {
+    fun createBarItem(iconRes: Int, label: String, labelView0: TextView? = null, onClick: () -> Unit): Pair<View, TextView?> {
         val item = LinearLayout(this@buildBottomBar).apply {
             orientation = LinearLayout.VERTICAL
             setGravity(Gravity.CENTER)
@@ -44,7 +44,7 @@ internal fun MainActivity.buildBottomBar(): View {
         }
         item.addView(icon)
 
-        val labelView = TextView(this@buildBottomBar).apply {
+        val labelView = labelView0 ?: TextView(this@buildBottomBar).apply {
             text = label
             textSize = 12f
             setTextColor(0xFF9AA7B4.toInt())
@@ -56,7 +56,7 @@ internal fun MainActivity.buildBottomBar(): View {
 
         item.setOnClickListener { onClick() }
 
-        return Pair(item, if (label == label) labelView else null)
+        return Pair(item, labelView)
     }
 
     // Create the four items
@@ -74,7 +74,7 @@ internal fun MainActivity.buildBottomBar(): View {
     val overlayLabel = "Overlay"
     val undoLabel = "Undo"
 
-    val (simItem, _) = createBarItem(R.drawable.ic_fast_forward, speedNames[speed]) {
+    val (simItem, _) = createBarItem(R.drawable.ic_fast_forward, speedNames[speed], speedLabel) {
         showSimulationPanel()
     }
     bar.addView(simItem, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
@@ -94,7 +94,7 @@ internal fun MainActivity.buildBottomBar(): View {
     }
     overlayState = overlayStateView
 
-    val (overlayItem, _) = createBarItem(R.drawable.ic_layers, overlayLabel) {
+    val (overlayItem, _) = createBarItem(R.drawable.ic_layers, overlayLabel, overlayStateView) {
         showOverlayPanel()
     }
     bar.addView(overlayItem, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
