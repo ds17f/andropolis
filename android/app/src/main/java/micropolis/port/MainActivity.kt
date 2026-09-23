@@ -426,7 +426,7 @@ class MainActivity : AppCompatActivity() {
         grid.addView(h.view)
     }
 
-    private fun showMessagesPanel() {
+    private fun showMessagesPanel(onDismiss: (() -> Unit)? = null) {
         showPanel("Messages", listOf(PanelTab("Recent", "📰") {
             LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
@@ -453,10 +453,10 @@ class MainActivity : AppCompatActivity() {
                     })
                 }
             }
-        }))
+        }), onDismiss)
     }
 
-    private fun showPanel(title: String, tabs: List<PanelTab>) {
+    private fun showPanel(title: String, tabs: List<PanelTab>, onDismiss: (() -> Unit)? = null) {
         val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(this)
         val col = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -535,10 +535,11 @@ class MainActivity : AppCompatActivity() {
         // Open fully (not the half-height peek) so the fixed-height content is all visible.
         sheet.behavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
         sheet.behavior.skipCollapsed = true
+        sheet.setOnDismissListener { onDismiss?.invoke() }
         sheet.show()
     }
 
-    private fun promptCityName(isFirst: Boolean) {
+    private fun promptCityName(isFirst: Boolean, onDismiss: (() -> Unit)? = null) {
         val input = android.widget.EditText(this).apply {
             setText(if (isFirst) "" else cityName)
             hint = "Name your city"
@@ -554,7 +555,23 @@ class MainActivity : AppCompatActivity() {
                 cityTitle.text = name
             }
             .setCancelable(false)
-            .show()
+            .create().also { dialog ->
+                dialog.setOnDismissListener { onDismiss?.invoke() }
+                dialog.show()
+            }
+    }
+
+    private fun pauseForUi(): () -> Unit {
+        if (speed == 0) return {}  // already paused: never auto-resume
+        val prev = speed
+        speed = 0; updatePlayPauseText(); updateSpeedChipText()
+        var done = false
+        return {
+            if (!done && speed == 0) {
+                speed = prev; lastRunSpeed = prev; updatePlayPauseText(); updateSpeedChipText()
+            }
+            done = true
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -640,6 +657,7 @@ class MainActivity : AppCompatActivity() {
             background = roundedBg(0x1FFFFFFF.toInt(), 12)
             setTextColor(0xFFEEF2F6.toInt())
             setOnClickListener {
+                val resume = pauseForUi()
                 val pm = PopupMenu(this@MainActivity, it as Button)
                 pm.menu.add("Redo").isEnabled = cursor < history.size - 1
                 pm.menu.add("New city")
@@ -648,11 +666,12 @@ class MainActivity : AppCompatActivity() {
                 pm.menu.add(if (annualReportEnabled) "Annual report: On" else "Annual report: Off")
                 pm.menu.add("Messages")
                 pm.menu.add("Settings")
+                var handedOff = false
                 pm.setOnMenuItemClickListener { item ->
                     when (item.title) {
                         "Redo" -> redo()
-                        "Messages" -> showMessagesPanel()
-                        "Settings" -> showSettingsPanel()
+                        "Messages" -> { handedOff = true; showMessagesPanel(resume) }
+                        "Settings" -> { handedOff = true; showSettingsPanel(resume) }
                         "New city" -> {
                             cityReady = false
                             sim.post {
@@ -661,13 +680,14 @@ class MainActivity : AppCompatActivity() {
                                 cityReady = true
                                 ui.post {
                                     resetHistory()                 // drop the old city's undo snapshots
-                                    promptCityName(isFirst = true)
+                                    promptCityName(isFirst = true, onDismiss = resume)
                                     commitSnapshot()               // seed with the new city
                                 }
                             }
+                            handedOff = true
                         }
-                        "Save city" -> showSaveDialog()
-                        "Load city" -> showLoadDialog()
+                        "Save city" -> { handedOff = true; showSaveDialog(resume) }
+                        "Load city" -> { handedOff = true; showLoadDialog(resume) }
                         else -> if (item.title.toString().startsWith("Annual report")) {
                             annualReportEnabled = !annualReportEnabled
                             prefs.edit().putBoolean("annualReport", annualReportEnabled).apply()
@@ -675,6 +695,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     true
                 }
+                pm.setOnDismissListener { if (!handedOff) resume() }
                 pm.show()
             }
             setPadding(dp(14), dp(8), dp(14), dp(8))
@@ -1288,7 +1309,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showSaveDialog() {
+    private fun showSaveDialog(onDismiss: (() -> Unit)? = null) {
         val input = android.widget.EditText(this).apply { setText(cityName); setSingleLine() }
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("Save city as")
@@ -1301,10 +1322,13 @@ class MainActivity : AppCompatActivity() {
                 showBanner("Saved “$name”")
             }
             .setNegativeButton("Cancel", null)
-            .show()
+            .create().also { dialog ->
+                dialog.setOnDismissListener { onDismiss?.invoke() }
+                dialog.show()
+            }
     }
 
-    private fun showLoadDialog() {
+    private fun showLoadDialog(onDismiss: (() -> Unit)? = null) {
         val files = citiesDir.listFiles { f: java.io.File -> f.name.endsWith(".cty") }
             ?.sortedWith(compareBy { it.name })
         val fileList = files?.toTypedArray() ?: emptyArray()
@@ -1320,6 +1344,7 @@ class MainActivity : AppCompatActivity() {
         if (fileList.isEmpty()) {
             col.addView(TextView(this).apply { text = "No saved cities yet."; setTextColor(0xFF9AA7B4.toInt()); setPadding(0, dp(8), 0, dp(8)) })
         }
+        var dismissedInternally = false
         for (f in fileList) {
             val name = f.name.removeSuffix(".cty")
             col.addView(LinearLayout(this).apply {
@@ -1333,7 +1358,7 @@ class MainActivity : AppCompatActivity() {
                 })
                 addView(TextView(this@MainActivity).apply {
                     text = "✕"; setTextColor(0xFF9AA7B4.toInt()); textSize = 16f; setPadding(dp(12), 0, dp(12), 0)
-                    setOnClickListener { f.delete(); sheet.dismiss(); showLoadDialog() }   // refresh
+                    setOnClickListener { f.delete(); sheet.dismiss(); dismissedInternally = true; showLoadDialog(onDismiss) }   // refresh
                 })
                 setOnClickListener {
                     val path = f.absolutePath
@@ -1348,7 +1373,9 @@ class MainActivity : AppCompatActivity() {
                 }
             })
         }
-        val sv = ScrollView(this); sv.addView(col); sheet.setContentView(sv); sheet.show()
+        val sv = ScrollView(this); sv.addView(col); sheet.setContentView(sv)
+        sheet.setOnDismissListener { if (!dismissedInternally) onDismiss?.invoke() }
+        sheet.show()
     }
 
     /** One Settings row: bold title, muted description, and a switch on the right. */
@@ -1374,7 +1401,7 @@ class MainActivity : AppCompatActivity() {
             })
         }
 
-    private fun showSettingsPanel() {
+    private fun showSettingsPanel(onDismiss: (() -> Unit)? = null) {
         showPanel("Settings", listOf(PanelTab("General") {
             LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
@@ -1391,7 +1418,7 @@ class MainActivity : AppCompatActivity() {
                     autoGoto = c; prefs.edit().putBoolean("autoGoto", c).apply()
                 })
             }
-        }))
+        }), onDismiss)
     }
 
     override fun onPause() {
