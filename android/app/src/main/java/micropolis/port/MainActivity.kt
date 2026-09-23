@@ -91,6 +91,10 @@ class MainActivity : AppCompatActivity() {
     // engine gCostOf, index = tool value
     private val toolCosts = intArrayOf(100,100,100,500, 500,0,5,1, 20,10,5000,10, 3000,3000,5000,10000, 100,0,0,0)
     private fun costOf(tool: Int) = toolCosts.getOrElse(tool) { 0 }
+    // history graph colors and labels (res, com, ind, money, crime, poll)
+    private val histColors = intArrayOf(0xFF4CAF50.toInt(), 0xFF42A5F5.toInt(), 0xFFF5A623.toInt(),
+        0xFF66BB6A.toInt(), 0xFFE5533D.toInt(), 0xFF9C6ADE.toInt())
+    private val histNames = arrayOf("Residential", "Commercial", "Industrial", "Money", "Crime", "Pollution")
     private lateinit var topBar: LinearLayout
     private lateinit var cityTitle: android.widget.TextView
     private lateinit var subtitle: android.widget.TextView
@@ -255,6 +259,45 @@ class MainActivity : AppCompatActivity() {
                     addView(statBar("Land value", land)); addView(statBar("Traffic", traffic))
                     addView(statBar("Population density", density))
                 }
+            },
+            PanelTab("Graphs", "📈") {
+                val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+                val scaleState = intArrayOf(0)                    // 0 = 10yr, 1 = 120yr
+                val graph = GraphView(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(180))
+                }
+                fun load() {
+                    sim.post {
+                        val s = ArrayList<Pair<Int, IntArray>>()
+                        for (t in 0..5) {
+                            val a = IntArray(120)
+                            MicropolisNative.getHistory(handle, t, scaleState[0], a)
+                            s.add(histColors[t] to a)
+                        }
+                        ui.post { graph.setSeries(s) }
+                    }
+                }
+                // scale toggle
+                val toggle = Button(this).apply {
+                    text = "10-year"; background = roundedBg(0x1FFFFFFF, 10); setTextColor(0xFFEEF2F6.toInt())
+                    stateListAnimator = null
+                    setOnClickListener { scaleState[0] = 1 - scaleState[0]; text = if (scaleState[0] == 0) "10-year" else "120-year"; load() }
+                }
+                col.addView(toggle, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(8) })
+                col.addView(graph)
+                // legend
+                val legend = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(10), 0, 0) }
+                for (i in histNames.indices) {
+                    legend.addView(LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL; setPadding(0, dp(3), 0, dp(3))
+                        addView(View(this@MainActivity).apply { background = roundedBg(histColors[i], 3)
+                            layoutParams = LinearLayout.LayoutParams(dp(14), dp(14)).apply { rightMargin = dp(8) } })
+                        addView(TextView(this@MainActivity).apply { text = histNames[i]; setTextColor(0xFF9AA7B4.toInt()); textSize = 13f })
+                    })
+                }
+                col.addView(legend)
+                load()
+                col
             }
         ))
     }
