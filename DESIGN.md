@@ -530,6 +530,42 @@ foregrounded.
 - Per event type: notify on/off, and pause on/off (default: disasters notify+pause;
   year-end notify only; span-end notify+pause).
 
+### 12.12a Implementation contract (task 057, 2026-09-23)
+
+Concrete choices on top of 12.4 — this is what the code does.
+
+- **Clock:** 768 engine ticks = 1 game year (engine speed 3: one `simulate()` per tick,
+  16 per `cityTime`, 48 `cityTime` per year). Pace `P` game-years/hour →
+  `ticksPerMs = P * 768 / 3_600_000`.
+- **Anchor (sidecar, SharedPreferences `bg*` keys + `filesDir/bg_anchor.cty`):**
+  `bgActive`, `bgAnchorRng`, `bgAnchorMs`, `bgPaused`, and the pending stop
+  `{bgPendTicks, bgPendAtMs, bgPendGroup, bgPendMsg, bgPendTitle, bgPendX, bgPendY, bgPendPause}`.
+- **Timeline recipe (probe = replay):** fresh engine → `init` →
+  `load_city_seeded(anchor, rng)` → speed 3 → engine disasters off → per tick: `simTick`,
+  the app's monthly disaster roll seeded from `(rng, monthKey)` (so it is part of the
+  deterministic timeline), drain events.
+- **Stops the probe looks for** (first wins, up to a horizon of 10 game years):
+  an engine message whose group (`Notifier.groupForMessage`) has *notify* on; a new game
+  year when *New year* notify is on; a *cooldown* skips a notify-only message index that
+  was notified less than one game year earlier (else traffic/crime would spam). No stop
+  inside the horizon → a silent "horizon" alarm that only re-anchors.
+- **On background (`onStop`)**, if Run in background is on and the sim is running: pause
+  the live tick loop, save the live city as the anchor with `rng = get_rng(live)`, probe
+  on a worker thread, set one alarm (`setExactAndAllowWhileIdle` when exact alarms are
+  allowed, else `setAndAllowWhileIdle`).
+- **Alarm (`BackgroundAlarmReceiver`, `goAsync` + worker thread):** replay anchor → stop
+  tick, save that as the new anchor (`rng` = state after replay), post the notification.
+  Pause group → `bgPaused = true`, no new alarm. Notify-only → re-anchor at "now", probe
+  again, arm again.
+- **On foreground (`onStart`):** cancel the alarm. If `bgActive`: replay the anchor for
+  `min(elapsed * ticksPerMs, pendTicks)` ticks (0 if paused at the event) into the live
+  engine, drop the catch-up events (they are logged to Messages), clear `bgActive`. If
+  paused at an event: set the game to Paused and centre on the event tile.
+- **Reboot (`BOOT_COMPLETED`):** re-arm the stored pending alarm.
+- Not in 057: the WorkManager safety net (12.11) — needs a new dependency; later.
+- Manifest: `RECEIVE_BOOT_COMPLETED`, `USE_EXACT_ALARM` (API 33+) and
+  `SCHEDULE_EXACT_ALARM` (`maxSdkVersion 32`).
+
 ### 12.13 Phased plan (each phase independently shippable)
 
 1. **Event system** (12.6) — engine callback → queue → `poll_event`; in-game message
