@@ -29,6 +29,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var buf: ShortArray
     private lateinit var sim: Handler
     private lateinit var ui: Handler
+    private lateinit var sfx: SoundFx
     private val statsBuf = IntArray(10)
     @Volatile private var speed = 2   // 0=Pause 1=Slow 2=Med 3=Fast
     private var lastRunSpeed = 2
@@ -908,7 +909,10 @@ class MainActivity : AppCompatActivity() {
         // Set up tap listener
         mapView.onTileTap = { tileX, tileY ->
             val tool = currentTool
-            sim.post { MicropolisNative.doTool(handle, tool, tileX, tileY) }
+            sim.post {
+                val r = MicropolisNative.doTool(handle, tool, tileX, tileY)
+                if (r == 1) ui.post { if (tool == 7) sfx.bulldoze() else sfx.build() }
+            }
         }
         // One snapshot per build stroke drives Undo/Redo.
         mapView.onStrokeEnd = { built -> if (built) commitSnapshot() }
@@ -943,6 +947,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Start tick loop on sim thread
+        sfx = SoundFx(this)
+        sfx.enabled = prefs.getBoolean("sound", true)
         sim.post({ tickLoop() })
     }
 
@@ -1230,6 +1236,7 @@ class MainActivity : AppCompatActivity() {
                     3 -> showBanner("⛰  Earthquake! (strength $a)")
                     4 -> showBanner("💀  Your city has fallen.")
                     5 -> showBanner("🏆  You won!")
+                    6 -> sfx.engineSound(a) // SOUND
                 }
             }
         }
@@ -1375,6 +1382,10 @@ class MainActivity : AppCompatActivity() {
                     "Show the minimap and move with it (fixed zoom). Off = pinch zoom.", minimapNav) { c ->
                     minimapNav = c; prefs.edit().putBoolean("minimapNav", c).apply(); applyMinimapMode()
                 })
+                addView(settingsToggle("Sound effects",
+                    "City sounds and build feedback.", sfx.enabled) { c ->
+                    sfx.enabled = c; prefs.edit().putBoolean("sound", c).apply()
+                })
                 addView(settingsToggle("Auto go to events",
                     "Jump the map to fires, disasters and other alerts as they happen.", autoGoto) { c ->
                     autoGoto = c; prefs.edit().putBoolean("autoGoto", c).apply()
@@ -1390,6 +1401,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        sfx.release()
         ui.removeCallbacksAndMessages(null)
         sim.post {
             if (handle != 0L) {
