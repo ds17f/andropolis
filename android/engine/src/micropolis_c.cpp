@@ -40,8 +40,10 @@ static_assert(MICROPOLIS_TOOL_OK == TOOLRESULT_OK, "ToolResult enum mismatch");
 // Opaque handle type wrapping the Micropolis engine and a null callback.
 // Both are heap-allocated because Micropolis::setCallback(NULL, ...)
 // in the destructor will delete the callback.
-// C++ helper (micropolis_seeded.cpp): load with a chosen PRNG state for the post-load init.
+// C++ helpers in micropolis_seeded.cpp (engine internals; upstream untouched).
 bool micropolisSeededLoad(Micropolis *sim, const std::string &path, UQuad rng);
+void micropolisPrimeSpritePool(Micropolis *sim);
+void micropolisFreeSpritePool(Micropolis *sim);
 
 struct MicropolisEngine {
     Micropolis *sim;
@@ -75,6 +77,7 @@ MicropolisEngine *micropolis_create(void) {
 void micropolis_destroy(MicropolisEngine *e) {
     if (e) {
         if (e->sim) {
+            micropolisFreeSpritePool(e->sim);
             e->sim->~Micropolis();      // matches the placement new in create()
             ::operator delete(e->sim);  // the ~Micropolis already deleted callback
         }
@@ -84,7 +87,8 @@ void micropolis_destroy(MicropolisEngine *e) {
 
 void micropolis_init(MicropolisEngine *e) {
     if (e) {
-        e->sim->init();
+        e->sim->init();                      // (resets freeSprites to NULL)
+        micropolisPrimeSpritePool(e->sim);   // upstream newSprite() mallocs unconstructed SimSprites
     }
 }
 
