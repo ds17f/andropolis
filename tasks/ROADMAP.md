@@ -18,6 +18,7 @@ Deeper design notes for the big items live in `BACKLOG.md`.
       **population grows** (on device). Proves the game loop end-to-end.
 
 ## 4. UI completion & game options
+- [x] 020 — Modern top app bar + actions menu (redesign stage 1)  ✅ merged
 - [x] 013 — Speed of play: pause / slow / med / fast (tick-loop based)  ✅ merged
 - [x] 014 — Tax rate control (`setCityTax` binding + UI)  ✅ merged
 - [x] 015 — Selected-tool highlight  ✅ merged  (icons/grouping still TODO)
