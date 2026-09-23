@@ -56,6 +56,31 @@ public:
         push(ev);
     }
 
+    virtual void makeSound(Micropolis *, emscripten::val, std::string /*channel*/,
+                           std::string sound, int x, int y) override {
+        static const struct { const char *name; int id; } kSounds[] = {
+            {"Siren", MICROPOLIS_SOUND_SIREN},
+            {"ExplosionLow", MICROPOLIS_SOUND_EXPLOSION_LOW},
+            {"ExplosionHigh", MICROPOLIS_SOUND_EXPLOSION_HIGH},
+            {"Monster", MICROPOLIS_SOUND_MONSTER},
+            {"HonkHonkLow", MICROPOLIS_SOUND_HONK_LOW},
+            {"HonkHonkMed", MICROPOLIS_SOUND_HONK_MED},
+            {"HonkHonkHigh", MICROPOLIS_SOUND_HONK_HIGH},
+            {"HeavyTraffic", MICROPOLIS_SOUND_HEAVY_TRAFFIC},
+            {"FogHornLow", MICROPOLIS_SOUND_FOGHORN},
+            {"UhUh", MICROPOLIS_SOUND_UHUH},
+            {"Sorry", MICROPOLIS_SOUND_SORRY},
+        };
+        for (const auto &s : kSounds) {
+            if (sound == s.name) {
+                MicropolisEvent ev{};
+                ev.type = MICROPOLIS_EVENT_SOUND; ev.x = x; ev.y = y; ev.a = s.id;
+                push(ev);
+                return;
+            }
+        }
+    }
+
     virtual void startEarthquake(Micropolis *, emscripten::val, int strength) override {
         MicropolisEvent ev{};
         ev.type = MICROPOLIS_EVENT_EARTHQUAKE; ev.x = -1; ev.y = -1; ev.a = strength;

@@ -217,8 +217,24 @@ typedef enum MicropolisEventType {
     MICROPOLIS_EVENT_AUTO_GOTO   = 2, /* engine asks the view to center on (x,y) */
     MICROPOLIS_EVENT_EARTHQUAKE  = 3, /* a=strength */
     MICROPOLIS_EVENT_LOSE        = 4, /* game over: lost */
-    MICROPOLIS_EVENT_WIN         = 5  /* scenario won */
+    MICROPOLIS_EVENT_WIN         = 5, /* scenario won */
+    MICROPOLIS_EVENT_SOUND       = 6  /* a=MicropolisSound id; x,y = source tile */
 } MicropolisEventType;
+
+/* Sounds the engine can request (makeSound). Unknown names are not enqueued. */
+typedef enum MicropolisSound {
+    MICROPOLIS_SOUND_SIREN          = 0,
+    MICROPOLIS_SOUND_EXPLOSION_LOW  = 1,
+    MICROPOLIS_SOUND_EXPLOSION_HIGH = 2,
+    MICROPOLIS_SOUND_MONSTER        = 3,
+    MICROPOLIS_SOUND_HONK_LOW       = 4,
+    MICROPOLIS_SOUND_HONK_MED       = 5,
+    MICROPOLIS_SOUND_HONK_HIGH      = 6,
+    MICROPOLIS_SOUND_HEAVY_TRAFFIC  = 7,
+    MICROPOLIS_SOUND_FOGHORN        = 8,
+    MICROPOLIS_SOUND_UHUH           = 9,
+    MICROPOLIS_SOUND_SORRY          = 10
+} MicropolisSound;
 
 /* A single event. x,y are tile coords (or -1 when not applicable); a..f are
  * type-specific payload (see MicropolisEventType). */
