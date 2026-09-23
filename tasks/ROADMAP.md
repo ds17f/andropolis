@@ -6,7 +6,7 @@ Deeper design notes for the big items live in `BACKLOG.md`.
 
 ## 1. Make it playable  (unblocks growing a city → unblocks playtest)
 - [x] 010 — complete the tool bar (power plants) + Move/Build toggle  ✅ merged
-- [ ] Verify precise placement on device; tweak tap targeting / zoom if needed
+- [x] Verify precise placement on device (place-on-lift ghost 030, straight roads, minimap nav 041)
 
 ## 2. Save / load
 - [x] 011 — C-ABI **save** function + JNI + Kotlin for save & load  ✅ merged
@@ -14,7 +14,7 @@ Deeper design notes for the big items live in `BACKLOG.md`.
       (code-verified + builds/runs; on-device round-trip to be confirmed by touch)
 
 ## 3. Playtest milestone
-- [ ] Build coal plant + residential zones + roads, run the sim, confirm
+- [x] Build coal plant + zones + roads, run the sim (user's *damesville* reached pop 25k)
       **population grows** (on device). Proves the game loop end-to-end.
 
 ## 4. UI completion & game options
@@ -25,7 +25,7 @@ Deeper design notes for the big items live in `BACKLOG.md`.
 - [x] 020-023 — Full modern UI redesign: top bar + ⋮ menu, categorized icon palette (bottom sheet), contextual build controls  ✅ merged
 - [x] Budget window (016+017)  ✅ merged
 - [x] City evaluation window (016+017)  ✅ merged
-- [ ] Map overlays (power, crime, pollution, land value, pop density, traffic)
+- [x] Map overlays (034 heatmap tinting; City→Stats bars 042)
 - [ ] Graphs / history window
 - [ ] Messages / notifications feed
 
@@ -35,9 +35,9 @@ Deeper design notes for the big items live in `BACKLOG.md`.
       Opus designs the C-ABI staged-effects extension.
 
 ## 6. Engine → host events  (needs the callback plumbing; Opus designs C-ABI/JNI)
-- [ ] Wire the key callbacks (funds / date / message / sound)
+- [x] Wire the key callbacks — event bridge 037 (QueueCallback + poll_event), consumption 038
 - [ ] Sounds
-- [ ] Disasters menu / triggers
+- [x] Disasters menu / triggers (Simulation → Disasters cards, 032/039)
 
 ---
 Method reminder: qwen (coder-next) does the coding; Opus specs + reviews. Android
