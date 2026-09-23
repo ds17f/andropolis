@@ -1246,27 +1246,33 @@ class MainActivity : AppCompatActivity() {
                 grid
             },
             PanelTab("Disasters") {
-                val grid = android.widget.GridLayout(this).apply { columnCount = 4 }
+                val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+                fun label(t: String) = TextView(this).apply {
+                    text = t; setTextColor(0xFF9AA7B4.toInt()); textSize = 13f; setPadding(dp(4), dp(8), 0, dp(4))
+                }
+                col.addView(label("Random disasters"))
+                val freqGrid = android.widget.GridLayout(this).apply { columnCount = 4 }
+                val freqGlyphs = arrayOf("🚫", "🌤", "⚠", "🔥")
                 val handles = ArrayList<CardHandle>()
                 fun select(sel: Int) { handles.forEachIndexed { i, h -> h.setSelected(i == sel) } }
                 for (i in disasterFreqNames.indices) {
-                    val h = panelCard(disasterFreqNames[i], "%s ($%s)".format(disasterFreqNames[i], if (i == 0) "Off" else "$i.0yr")) {
+                    val h = panelCard(freqGlyphs[i], disasterFreqNames[i]) {
                         disasterFreq = i; prefs.edit().putInt("disasterFreq", i).apply()
                         select(i)
                     }
-                    handles.add(h); addCard(grid, h)
+                    handles.add(h); addCard(freqGrid, h)
                 }
                 select(disasterFreq)
-                grid
-            },
-            PanelTab("Manual") {
+                col.addView(freqGrid)
+                col.addView(label("Trigger now"))
                 val names = arrayOf("Fire","Flood","Tornado","Earthquake","Monster","Meltdown")
                 val glyphs = arrayOf("🔥","🌊","🌪","⛰","👾","☢")
                 val grid = android.widget.GridLayout(this).apply { columnCount = 3 }
                 names.forEachIndexed { kind, n ->
                     addCard(grid, panelCard(glyphs[kind], n) { sim.post { MicropolisNative.makeDisaster(handle, kind) } })
                 }
-                grid
+                col.addView(grid)
+                col
             }
         ))
     }
@@ -1304,6 +1310,7 @@ class MainActivity : AppCompatActivity() {
         // and this runs on the sim thread after them. Pause = 0 ticks, engine stays running.
         val sp = speed
         if (handle != 0L) MicropolisNative.setSpeed(handle, maxOf(1, engineSpeed[sp]))
+        if (handle != 0L) MicropolisNative.setEnableDisasters(handle, 0)   // only our monthly roll (see below)
         repeat(ticksPerFrame[sp]) { MicropolisNative.simTick(handle) }
         MicropolisNative.copyTiles(handle, buf)
         val tilesCopy = buf.copyOf()
@@ -1326,8 +1333,7 @@ class MainActivity : AppCompatActivity() {
         val monthKey = year * 12 + month
         if (monthKey != lastDisasterMonth) {
             if (lastDisasterMonth != -1 && disasterFreq > 0 && speed != 0) {
-                val months = disasterYearsPer[disasterFreq] * 12
-                if (random.nextInt(months) == 0) {
+                if (random.nextInt(disasterYearsPer[disasterFreq] * 12) == 0) {
                     // weight like the original: fires most common, meltdown rarest
                     val kind = intArrayOf(0, 0, 1, 2, 3, 4, 0, 5)[random.nextInt(8)]
                     MicropolisNative.makeDisaster(handle, kind)

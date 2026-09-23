@@ -60,6 +60,9 @@ object MicropolisNative {
     external fun setFunding(handle: Long, roadPct: Int, firePct: Int, policePct: Int)
     external fun setAutoBudget(handle: Long, on: Int)
 
+    /** Turn the engine's own random disasters on (1) or off (0); manual makeDisaster still works. */
+    external fun setEnableDisasters(handle: Long, on: Int)
+
     /**
      * Dequeue one engine event into out (length >= 9):
      * [type, x, y, a, b, c, d, e, f]. Returns true if an event was written, false

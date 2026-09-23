@@ -309,6 +309,11 @@ void micropolis_set_funding(MicropolisEngine *e, int road_pct, int fire_pct, int
     e->sim->setAutoBudget(false);
 }
 
+void micropolis_set_enable_disasters(MicropolisEngine *e, int on) {
+    if (!e) return;
+    e->sim->setEnableDisasters(on != 0);
+}
+
 void micropolis_set_auto_budget(MicropolisEngine *e, int on) {
     if (!e) return;
     e->sim->setAutoBudget(on != 0);

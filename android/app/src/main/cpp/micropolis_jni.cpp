@@ -153,6 +153,11 @@ Java_micropolis_port_MicropolisNative_setFunding(JNIEnv *, jobject, jlong h, jin
 }
 
 JNIEXPORT void JNICALL
+Java_micropolis_port_MicropolisNative_setEnableDisasters(JNIEnv *, jobject, jlong h, jint on) {
+    micropolis_set_enable_disasters(eng(h), on);
+}
+
+JNIEXPORT void JNICALL
 Java_micropolis_port_MicropolisNative_setAutoBudget(JNIEnv *, jobject, jlong h, jint on) {
     micropolis_set_auto_budget(eng(h), on);
 }
