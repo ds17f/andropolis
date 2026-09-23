@@ -49,6 +49,8 @@ class MainActivity : AppCompatActivity() {
     private var currentOverlay = 0
     private val overlayBuf = ByteArray(120 * 100)
     private val overlayNames = arrayOf("Off","Population","Traffic","Pollution","Land value","Crime","Growth","Power")
+    private var annualReportEnabled = true
+    private var lastReportYear = -1
     // engine gToolSize, index = tool value; default 1 for anything past the table
     private val toolFootprints = intArrayOf(3,3,3,3, 3,1,1,1, 1,1,4,1, 4,4,4,6, 1,1,1,1)
     private fun footprintOf(tool: Int) = toolFootprints.getOrElse(tool) { 1 }
@@ -351,6 +353,7 @@ class MainActivity : AppCompatActivity() {
                 pm.menu.add("Load city")
                 pm.menu.add("Budget")
                 pm.menu.add("City evaluation")
+                pm.menu.add(if (annualReportEnabled) "Annual report: On" else "Annual report: Off")
                 pm.menu.add("Tax rate — ${taxRates[taxIdx]}%")
                 pm.setOnMenuItemClickListener { item ->
                     when (item.title) {
@@ -378,10 +381,16 @@ class MainActivity : AppCompatActivity() {
                             val ev = IntArray(7); MicropolisNative.getEvaluation(handle, ev)
                             ui.post { showEvalDialog(ev) }
                         }
-                        else -> if (item.title.toString().startsWith("Tax")) {
-                            taxIdx = (taxIdx + 1) % taxRates.size
-                            val t = taxRates[taxIdx]
-                            sim.post { MicropolisNative.setCityTax(handle, t) }
+                        else -> when {
+                            item.title.toString().startsWith("Annual report") -> {
+                                annualReportEnabled = !annualReportEnabled
+                                prefs.edit().putBoolean("annualReport", annualReportEnabled).apply()
+                            }
+                            item.title.toString().startsWith("Tax") -> {
+                                taxIdx = (taxIdx + 1) % taxRates.size
+                                val t = taxRates[taxIdx]
+                                sim.post { MicropolisNative.setCityTax(handle, t) }
+                            }
                         }
                     }
                     true
@@ -597,6 +606,9 @@ class MainActivity : AppCompatActivity() {
         mapView.straightLineTool = isStraightLineTool(currentTool)
         updatePill()
         updateUndoButtons()
+
+        // Set up annual report state
+        annualReportEnabled = prefs.getBoolean("annualReport", true)
 
         // Set up tap listener
         mapView.onTileTap = { tileX, tileY ->
@@ -868,6 +880,11 @@ class MainActivity : AppCompatActivity() {
             popValue.text = "$pop"
             scoreValue.text = "$score"
         }
+        if (lastReportYear != -1 && year > lastReportYear && annualReportEnabled) {
+            if (speed != 0) { lastRunSpeed = speed; speed = 0; updatePlayPauseText(); updateSpeedChipText() }
+            showReportCard(year)
+        }
+        lastReportYear = year
         sim.postDelayed({ tickLoop() }, 100)
     }
 
@@ -898,6 +915,29 @@ class MainActivity : AppCompatActivity() {
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("City Evaluation").setMessage(msg)
             .setPositiveButton("OK", null).show()
+    }
+
+    private fun showReportCard(year: Int) {
+        sim.post {
+            val ev = IntArray(7); MicropolisNative.getEvaluation(handle, ev)
+            val b = IntArray(12); MicropolisNative.getBudget(handle, b)
+            ui.post {
+                val cls = cityClassNames.getOrElse(ev[2]) { "?" }
+                val msg = """
+                    Class: $cls
+                    Population: ${ev[3]}  (Δ ${ev[4]})
+                    Score: ${ev[0]}  (Δ ${ev[1]})
+                    Approval: ${ev[6]}%
+                    Funds: $${b[0]}    Tax: ${b[1]}%
+                """.trimIndent()
+                androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle("Annual Report — $year")
+                    .setMessage(msg)
+                    .setPositiveButton("Continue", null)
+                    .setCancelable(false)
+                    .show()
+            }
+        }
     }
 
     override fun onPause() {
