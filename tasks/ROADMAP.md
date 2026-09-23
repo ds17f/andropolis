@@ -43,3 +43,6 @@ Deeper design notes for the big items live in `BACKLOG.md`.
 Method reminder: qwen (coder-next) does the coding; Opus specs + reviews. Android
 tasks run in the main tree (not `--isolate`). Dispatch via `run_in_background`,
 never a trailing `&`. See `CLAUDE.md`.
+
+- [x] 024 — Modern styling pass (rounded corners, cards, spacing, depth)  ✅ merged
+- [x] 025 — Trial mode (build → Keep/Revert), replaces tile-paint preview  ✅ merged
