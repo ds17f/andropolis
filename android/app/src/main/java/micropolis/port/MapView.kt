@@ -84,6 +84,7 @@ class MapView(context: Context) : View(context) {
     private var axisLock = 0               // 0 undecided, 1 horizontal, 2 vertical
     private val strokeBuilt = HashSet<Long>()
     var straightLineTool = false           // set by MainActivity for road/rail/wire
+    var tapOnlyTool = false                 // e.g. Query: act on a clean tap, never on drag/pinch
     private var navLocked = false          // minimap-navigation mode: fixed zoom, no pinch/pan
 
     private val scaleDetector = ScaleGestureDetector(context, ScaleListener())

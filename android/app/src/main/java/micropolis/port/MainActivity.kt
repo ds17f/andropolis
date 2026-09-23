@@ -52,6 +52,8 @@ class MainActivity : AppCompatActivity() {
     private val overlayNames = arrayOf("Off","Population","Traffic","Pollution","Land value","Crime","Growth","Power")
     private var annualReportEnabled = true
     private var lastReportYear = -1
+    private var lastReportFunds = -1        // for the annual-report funds delta
+    private var lastReportApproval = -1     // for the annual-report approval delta
     private var minimapNav = false          // Settings: minimap navigation mode
     private val navZoom = 5f                 // fixed zoom when minimap navigation is on
     private val eventBuf = IntArray(9)
@@ -83,6 +85,9 @@ class MainActivity : AppCompatActivity() {
     // engine gToolSize, index = tool value; default 1 for anything past the table
     private val toolFootprints = intArrayOf(3,3,3,3, 3,1,1,1, 1,1,4,1, 4,4,4,6, 1,1,1,1)
     private fun footprintOf(tool: Int) = toolFootprints.getOrElse(tool) { 1 }
+    // engine gCostOf, index = tool value
+    private val toolCosts = intArrayOf(100,100,100,500, 500,0,5,1, 20,10,5000,10, 3000,3000,5000,10000, 100,0,0,0)
+    private fun costOf(tool: Int) = toolCosts.getOrElse(tool) { 0 }
     private lateinit var topBar: LinearLayout
     private lateinit var cityTitle: android.widget.TextView
     private lateinit var subtitle: android.widget.TextView
@@ -117,16 +122,9 @@ class MainActivity : AppCompatActivity() {
 
     data class ToolItem(val label: String, val value: Int, val icon: Int)
 
-    class PanelTab(val title: String, val build: () -> View)
+    class PanelTab(val title: String, val glyph: String = "", val build: () -> View)
 
     private class CardHandle(val view: LinearLayout, val setSelected: (Boolean) -> Unit)
-
-    private class CityData(
-        val funds: Int, val taxRate: Int,
-        val roadPct: Int, val firePct: Int, val policePct: Int,
-        val pop: Int, val cityClass: Int, val approval: Int,
-        val crime: Int, val pollution: Int, val landValue: Int, val traffic: Int, val density: Int
-    )
 
     private val cityClassNames = arrayOf("Village","Town","City","Capital","Metropolis","Megalopolis")
 
@@ -143,68 +141,116 @@ class MainActivity : AppCompatActivity() {
         sim.post {
             val b = IntArray(12); MicropolisNative.getBudget(handle, b)
             val ev = IntArray(7); MicropolisNative.getEvaluation(handle, ev)
-            val d = CityData(
-                funds = b[0], taxRate = b[1], roadPct = b[5], policePct = b[8], firePct = b[11],
-                pop = ev[3], cityClass = ev[2], approval = ev[6],
-                crime = avgOverlay(5), pollution = avgOverlay(3), landValue = avgOverlay(4),
-                traffic = avgOverlay(2), density = avgOverlay(1)
-            )
-            ui.post { showCityPanelUI(d) }
+            val crime = avgOverlay(5); val poll = avgOverlay(3); val land = avgOverlay(4)
+            val traffic = avgOverlay(2); val density = avgOverlay(1)
+            ui.post { showCityPanelUI(b, ev, crime, poll, land, traffic, density) }
         }
     }
 
-    private fun showCityPanelUI(d: CityData) {
-        var road = d.roadPct; var fire = d.firePct; var police = d.policePct
-        fun label(text: String) = TextView(this).apply {
-            this.text = text; setTextColor(0xFFEEF2F6.toInt()); textSize = 14f; setPadding(0, dp(10), 0, dp(2))
-        }
-        fun muted(text: String) = TextView(this).apply {
-            this.text = text; setTextColor(0xFF9AA7B4.toInt()); textSize = 13f; setPadding(0, dp(2), 0, dp(2))
-        }
-        fun sliderRow(title: String, value: Int, max: Int, suffix: String, onApply: (Int) -> Unit): View {
-            val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-            val head = label("$title: $value$suffix")
-            col.addView(head)
-            col.addView(android.widget.SeekBar(this).apply {
-                this.max = max; progress = value
-                setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
-                    override fun onProgressChanged(sb: android.widget.SeekBar, p: Int, fromUser: Boolean) { head.text = "$title: $p$suffix" }
-                    override fun onStartTrackingTouch(sb: android.widget.SeekBar) {}
-                    override fun onStopTrackingTouch(sb: android.widget.SeekBar) { onApply(sb.progress) }
+    private fun levelWord(v: Int) = when {
+        v < 26 -> "None"; v < 77 -> "Low"; v < 128 -> "Medium"; v < 191 -> "High"; else -> "Very high"
+    }
+
+    /** A labeled stat as a proportional coloured bar. v is 0..255. */
+    private fun statBar(label: String, v: Int): View {
+        val pct = (v * 100 / 255).coerceIn(0, 100)
+        val color = when { v < 77 -> 0xFF4CAF50.toInt(); v < 160 -> 0xFFF5A623.toInt(); else -> 0xFFE5533D.toInt() }
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(0, dp(8), 0, dp(8))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                addView(TextView(this@MainActivity).apply {
+                    text = label; setTextColor(0xFF9AA7B4.toInt()); textSize = 13f
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                })
+                addView(TextView(this@MainActivity).apply {
+                    text = levelWord(v); setTextColor(0xFFEEF2F6.toInt()); textSize = 13f
+                    setTypeface(null, android.graphics.Typeface.BOLD)
                 })
             })
-            return col
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                background = roundedBg(0x1FFFFFFF, 6)
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(8)).apply { topMargin = dp(4) }
+                addView(View(this@MainActivity).apply { background = roundedBg(color, 6)
+                    layoutParams = LinearLayout.LayoutParams(0, dp(8), pct.toFloat()) })
+                addView(View(this@MainActivity).apply {
+                    layoutParams = LinearLayout.LayoutParams(0, dp(8), (100 - pct).toFloat()) })
+            })
+        }
+    }
+
+    private fun showCityPanelUI(b: IntArray, ev: IntArray, crime: Int, poll: Int, land: Int, traffic: Int, density: Int) {
+        fun row(k: String, v: String) = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(7), 0, dp(7))
+            addView(TextView(this@MainActivity).apply { text = k; setTextColor(0xFF9AA7B4.toInt()); textSize = 14f
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) })
+            addView(TextView(this@MainActivity).apply { text = v; setTextColor(0xFFEEF2F6.toInt()); textSize = 14f
+                setTypeface(null, android.graphics.Typeface.BOLD) })
         }
         showPanel("City", listOf(
-            PanelTab("Budget") {
+            PanelTab("Evaluation", "🏛") {
                 LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
-                    addView(muted("Funds: \$${d.funds}"))
-                    addView(sliderRow("Tax rate", d.taxRate, 20, "%") { v -> sim.post { MicropolisNative.setCityTax(handle, v) } })
-                    addView(sliderRow("Road funding", road, 100, "%") { v -> road = v; sim.post { MicropolisNative.setFunding(handle, road, fire, police) } })
-                    addView(sliderRow("Fire funding", fire, 100, "%") { v -> fire = v; sim.post { MicropolisNative.setFunding(handle, road, fire, police) } })
-                    addView(sliderRow("Police funding", police, 100, "%") { v -> police = v; sim.post { MicropolisNative.setFunding(handle, road, fire, police) } })
+                    addView(row("Class", cityClassNames.getOrElse(ev[2]) { "?" }))
+                    addView(row("Population", "${ev[3]}  (Δ ${ev[4]})"))
+                    addView(row("Score", "${ev[0]}  (Δ ${ev[1]})"))
+                    addView(row("Approval", "${ev[6]}%"))
+                    addView(row("Assessed value", "$${ev[5]}"))
                 }
             },
-            PanelTab("Stats") {
-                fun statRow(name: String, value: String): View = LinearLayout(this).apply {
-                    orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(6), 0, dp(6))
-                    addView(TextView(this@MainActivity).apply { text = name; setTextColor(0xFF9AA7B4.toInt()); textSize = 14f
-                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) })
-                    addView(TextView(this@MainActivity).apply { text = value; setTextColor(0xFFEEF2F6.toInt()); textSize = 14f
-                        setTypeface(null, android.graphics.Typeface.BOLD) })
+            PanelTab("Budget", "💰") {
+                var road = b[5]; var fire = b[11]; var police = b[8]; var tax = b[1]; val curTax = b[1]
+                val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+                val proj = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL; background = roundedBg(0xFF12161C.toInt(), 12)
+                    setPadding(dp(14), dp(12), dp(14), dp(12))
                 }
-                fun pct(v: Int) = "${v * 100 / 255}"
+                val income = TextView(this).apply { setTextColor(0xFFEEF2F6.toInt()) }
+                val rSpend = TextView(this).apply { setTextColor(0xFF9AA7B4.toInt()) }
+                val fSpend = TextView(this).apply { setTextColor(0xFF9AA7B4.toInt()) }
+                val pSpend = TextView(this).apply { setTextColor(0xFF9AA7B4.toInt()) }
+                val net = TextView(this).apply { setTypeface(null, android.graphics.Typeface.BOLD) }
+                proj.addView(TextView(this).apply { text = "Projection"; setTextColor(0xFF7D8B99.toInt()); textSize = 11f })
+                proj.addView(income); proj.addView(rSpend); proj.addView(fSpend); proj.addView(pSpend); proj.addView(net)
+                fun update() {
+                    val inc = if (curTax > 0) (b[2].toLong() * tax / curTax).toInt() else b[2]
+                    val rs = b[3] * road / 100; val fs = b[9] * fire / 100; val ps = b[6] * police / 100
+                    income.text = "Tax income: $$inc"; rSpend.text = "Roads: $$rs"
+                    fSpend.text = "Fire: $$fs"; pSpend.text = "Police: $$ps"
+                    val n = inc - rs - fs - ps
+                    net.text = "Net: ${if (n >= 0) "+" else ""}$$n"
+                    net.setTextColor(if (n >= 0) 0xFF4CAF50.toInt() else 0xFFE5533D.toInt())
+                }
+                fun slider(title: String, value: Int, max: Int, onLive: (Int) -> Unit, onApply: (Int) -> Unit): View {
+                    val head = TextView(this).apply { text = "$title: $value%"; setTextColor(0xFFEEF2F6.toInt()); setPadding(0, dp(10), 0, dp(2)) }
+                    return LinearLayout(this).apply {
+                        orientation = LinearLayout.VERTICAL; addView(head)
+                        addView(android.widget.SeekBar(this@MainActivity).apply {
+                            this.max = max; progress = value
+                            setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                                override fun onProgressChanged(s: android.widget.SeekBar, p: Int, u: Boolean) { head.text = "$title: $p%"; onLive(p); update() }
+                                override fun onStartTrackingTouch(s: android.widget.SeekBar) {}
+                                override fun onStopTrackingTouch(s: android.widget.SeekBar) { onApply(s.progress) }
+                            })
+                        })
+                    }
+                }
+                col.addView(row("Funds", "$${b[0]}"))
+                col.addView(slider("Tax rate", tax, 20, { tax = it }, { sim.post { MicropolisNative.setCityTax(handle, it) } }))
+                col.addView(slider("Road funding", road, 100, { road = it }, { sim.post { MicropolisNative.setFunding(handle, road, fire, police) } }))
+                col.addView(slider("Fire funding", fire, 100, { fire = it }, { sim.post { MicropolisNative.setFunding(handle, road, fire, police) } }))
+                col.addView(slider("Police funding", police, 100, { police = it }, { sim.post { MicropolisNative.setFunding(handle, road, fire, police) } }))
+                col.addView(proj, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(16) })
+                update()
+                col
+            },
+            PanelTab("Stats", "📊") {
                 LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
-                    addView(statRow("Population", "${d.pop}"))
-                    addView(statRow("City class", cityClassNames.getOrElse(d.cityClass) { "—" }))
-                    addView(statRow("Approval", "${d.approval}%"))
-                    addView(statRow("Crime", pct(d.crime)))
-                    addView(statRow("Pollution", pct(d.pollution)))
-                    addView(statRow("Land value", pct(d.landValue)))
-                    addView(statRow("Traffic", pct(d.traffic)))
-                    addView(statRow("Density", pct(d.density)))
+                    addView(statBar("Crime", crime)); addView(statBar("Pollution", poll))
+                    addView(statBar("Land value", land)); addView(statBar("Traffic", traffic))
+                    addView(statBar("Population density", density))
                 }
             }
         ))
@@ -342,7 +388,7 @@ class MainActivity : AppCompatActivity() {
             }
             tabs.forEachIndexed { i, t ->
                 val chip = TextView(this).apply {
-                    text = t.title
+                    text = if (t.glyph.isEmpty()) t.title else "${t.glyph}  ${t.title}"
                     textSize = 13f
                     setPadding(dp(14), dp(8), dp(14), dp(8))
                     layoutParams = LinearLayout.LayoutParams(
@@ -473,10 +519,7 @@ class MainActivity : AppCompatActivity() {
                 pm.menu.add("New city")
                 pm.menu.add("Save city")
                 pm.menu.add("Load city")
-                pm.menu.add("Budget")
-                pm.menu.add("City evaluation")
                 pm.menu.add(if (annualReportEnabled) "Annual report: On" else "Annual report: Off")
-                pm.menu.add("Tax rate — ${taxRates[taxIdx]}%")
                 pm.menu.add("Settings")
                 pm.setOnMenuItemClickListener { item ->
                     when (item.title) {
@@ -497,24 +540,9 @@ class MainActivity : AppCompatActivity() {
                         }
                         "Save city" -> sim.post { MicropolisNative.saveCity(handle, savePath) }
                         "Load city" -> sim.post { MicropolisNative.loadCity(handle, savePath) }
-                        "Budget" -> sim.post {
-                            val b = IntArray(12); MicropolisNative.getBudget(handle, b)
-                            ui.post { showBudgetDialog(b) }
-                        }
-                        "City evaluation" -> sim.post {
-                            val ev = IntArray(7); MicropolisNative.getEvaluation(handle, ev)
-                            ui.post { showEvalDialog(ev) }
-                        }
-                        else -> when {
-                            item.title.toString().startsWith("Annual report") -> {
-                                annualReportEnabled = !annualReportEnabled
-                                prefs.edit().putBoolean("annualReport", annualReportEnabled).apply()
-                            }
-                            item.title.toString().startsWith("Tax") -> {
-                                taxIdx = (taxIdx + 1) % taxRates.size
-                                val t = taxRates[taxIdx]
-                                sim.post { MicropolisNative.setCityTax(handle, t) }
-                            }
+                        else -> if (item.title.toString().startsWith("Annual report")) {
+                            annualReportEnabled = !annualReportEnabled
+                            prefs.edit().putBoolean("annualReport", annualReportEnabled).apply()
                         }
                     }
                     true
@@ -796,6 +824,7 @@ class MainActivity : AppCompatActivity() {
         pillName.text = ti.label
         mapView.toolFootprint = footprintOf(currentTool)
         mapView.straightLineTool = isStraightLineTool(currentTool)
+        mapView.tapOnlyTool = currentTool == 5   // Query: tap to inspect, never on drag/pinch
     }
 
     private fun newSnapPath(): String { snapSeq++; return java.io.File(snapDir, "s$snapSeq.cty").absolutePath }
@@ -874,11 +903,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun buildPill(glyph: String, label: String, state: TextView, onClick: () -> Unit): LinearLayout {
+        // Vertical, centered: glyph on top, then the label gets the pill's full width
+        // (so long labels like "Simulation" fit on one line at any font scale), then the state.
         val pill = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER_VERTICAL
+            orientation = LinearLayout.VERTICAL
+            gravity = android.view.Gravity.CENTER
             background = roundedBg(0xFF1A222A.toInt(), 18)
-            setPadding(dp(12), dp(8), dp(12), dp(8))
+            setPadding(dp(6), dp(8), dp(6), dp(8))
             layoutParams = LayoutParams(0, LayoutParams.WRAP_CONTENT).apply { weight = 1f; setMargins(dp(4), 0, dp(4), 0) }
             setOnClickListener { onClick() }
         }
@@ -886,19 +917,20 @@ class MainActivity : AppCompatActivity() {
             text = glyph
             textSize = 18f
             setTextColor(0xFFF5A623.toInt())
-            setPadding(0, 0, dp(8), 0)
+            gravity = android.view.Gravity.CENTER
         })
-        val info = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-        }
-        info.addView(TextView(this).apply {
+        pill.addView(TextView(this).apply {
             text = label
             setTextColor(0xFFEEF2F6.toInt())
-            textSize = 13f
+            textSize = 12f
+            maxLines = 1
+            gravity = android.view.Gravity.CENTER
             setTypeface(null, android.graphics.Typeface.BOLD)
+            setPadding(0, dp(2), 0, 0)
         })
-        info.addView(state)
-        pill.addView(info)
+        state.gravity = android.view.Gravity.CENTER
+        state.maxLines = 1
+        pill.addView(state)
         return pill
     }
 
@@ -921,6 +953,14 @@ class MainActivity : AppCompatActivity() {
             textSize = 11f
             gravity = android.view.Gravity.CENTER
             setPadding(0, 6, 0, 0)
+        })
+        val cost = costOf(ti.value)
+        card.addView(android.widget.TextView(this).apply {
+            text = if (cost == 0) "Free" else "$$cost"
+            setTextColor(0xFFF5A623.toInt())
+            textSize = 10f
+            gravity = android.view.Gravity.CENTER
+            setPadding(0, 2, 0, 0)
         })
         // even 4-column sizing
         val lp = android.widget.GridLayout.LayoutParams()
@@ -1070,10 +1110,15 @@ class MainActivity : AppCompatActivity() {
             val ev = IntArray(7); MicropolisNative.getEvaluation(handle, ev)
             val b = IntArray(12); MicropolisNative.getBudget(handle, b)
             ui.post {
+                fun signed(n: Int) = if (n >= 0) "+$n" else "$n"
+                val fundsDelta = if (lastReportFunds >= 0) b[0] - lastReportFunds else 0
+                val apprDelta = if (lastReportApproval >= 0) ev[6] - lastReportApproval else 0
+                lastReportFunds = b[0]; lastReportApproval = ev[6]
                 styledDialog("Annual Report", listOf(
                     "Class" to cityClassNames.getOrElse(ev[2]) { "?" },
                     "Population" to "${ev[3]} (Δ ${ev[4]})", "Score" to "${ev[0]} (Δ ${ev[1]})",
-                    "Approval" to "${ev[6]}%", "Funds" to "$${b[0]}", "Tax" to "${b[1]}%"),
+                    "Approval" to "${ev[6]}% (Δ ${signed(apprDelta)}%)",
+                    "Funds" to "$${b[0]} (Δ ${signed(fundsDelta)})", "Tax" to "${b[1]}%"),
                     actionLabel = "Continue", subtitle = "Year $year",
                     onAction = { if (resume && speed == 0) { speed = lastRunSpeed; updatePlayPauseText(); updateSpeedChipText() } })
             }
