@@ -60,6 +60,12 @@ object MicropolisNative {
     external fun setFunding(handle: Long, roadPct: Int, firePct: Int, policePct: Int)
     external fun setAutoBudget(handle: Long, on: Int)
 
+    /** Overwrite one map tile (raw 16-bit value incl. flags, passed as 0..65535). Used by undo. */
+    external fun setTile(handle: Long, x: Int, y: Int, value: Int)
+
+    /** Set the city treasury. Used by undo to refund / re-charge a build. */
+    external fun setFunds(handle: Long, funds: Int)
+
     /** Turn the engine's own random disasters on (1) or off (0); manual makeDisaster still works. */
     external fun setEnableDisasters(handle: Long, on: Int)
 

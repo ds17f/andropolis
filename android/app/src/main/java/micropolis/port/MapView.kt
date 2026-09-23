@@ -27,6 +27,7 @@ class MapView(context: Context) : View(context) {
 
     var onTileTap: ((Int, Int) -> Unit)? = null
     var onStrokeEnd: ((built: Boolean) -> Unit)? = null
+    var onStrokeStart: (() -> Unit)? = null
     var onViewportChanged: ((Float, Float, Float, Float) -> Unit)? = null
     var onUserNavigate: (() -> Unit)? = null
     
@@ -122,6 +123,7 @@ class MapView(context: Context) : View(context) {
         if (!navLocked) scaleDetector.onTouchEvent(event)
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                onStrokeStart?.invoke()
                 built = false
                 lastBuiltTile = null
                 strokeBuilt.clear()

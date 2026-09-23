@@ -153,6 +153,16 @@ Java_micropolis_port_MicropolisNative_setFunding(JNIEnv *, jobject, jlong h, jin
 }
 
 JNIEXPORT void JNICALL
+Java_micropolis_port_MicropolisNative_setTile(JNIEnv *, jobject, jlong h, jint x, jint y, jint value) {
+    micropolis_set_tile(eng(h), x, y, (unsigned short) value);
+}
+
+JNIEXPORT void JNICALL
+Java_micropolis_port_MicropolisNative_setFunds(JNIEnv *, jobject, jlong h, jint funds) {
+    micropolis_set_funds(eng(h), funds);
+}
+
+JNIEXPORT void JNICALL
 Java_micropolis_port_MicropolisNative_setEnableDisasters(JNIEnv *, jobject, jlong h, jint on) {
     micropolis_set_enable_disasters(eng(h), on);
 }

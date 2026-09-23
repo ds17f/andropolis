@@ -62,7 +62,7 @@ class MainActivity : AppCompatActivity() {
                 CitySaves.copyFromUri(this, uri, tmp)
                 MicropolisNative.loadCity(handle, tmp.absolutePath)
                 MicropolisNative.saveCity(handle, autosavePath)   // make restore-on-launch match
-                ui.post { resetHistory(); commitSnapshot() }       // fresh undo history for the loaded city
+                ui.post { resetHistory() }                         // undo does not cross cities
             }
             showBanner("Loaded “$name”")
         }
@@ -92,11 +92,15 @@ class MainActivity : AppCompatActivity() {
         try { CitySaves.writeAutosave(this, tmp, sanitize(cityName), statsBuf[4], statsBuf[5]) }
         catch (e: Exception) { android.util.Log.w("Micropolis", "autosave failed", e) }
     }
-    private val snapDir by lazy { java.io.File(filesDir, "undo").apply { mkdirs() } }
-    private val history = mutableListOf<String>()   // snapshot file paths, oldest..newest
-    private var cursor = -1                          // index of the current live state
-    private var snapSeq = 0
+    // Per-build undo: each stroke records the tiles it changed and what it cost.
+    private class BuildEdit(val idx: IntArray, val before: ShortArray, val after: ShortArray, val cost: Int)
+    private val undoStack = ArrayDeque<BuildEdit>()   // newest last (ui thread)
+    private val redoStack = ArrayDeque<BuildEdit>()
     private val undoCap = 24
+    private val strokeBefore = ShortArray(120 * 100)  // map at stroke start (sim thread)
+    private var strokeFundsBefore = 0                 // sim thread
+    private var strokeMinX = Int.MAX_VALUE; private var strokeMinY = Int.MAX_VALUE
+    private var strokeMaxX = -1; private var strokeMaxY = -1
     private var currentOverlay = 0
     private val overlayBuf = ByteArray(120 * 100)
     private val overlayNames = arrayOf("Off","Population","Traffic","Pollution","Land value","Crime","Growth","Power")
@@ -624,6 +628,8 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        java.io.File(filesDir, "undo").deleteRecursively()   // old whole-city undo snapshots (pre-052)
+
         // Saves used to live in private storage (filesDir/city.cty, then filesDir/cities/).
         // Copy them once into the public Documents/Micropolis folder; leave the originals.
         if (!prefs.getBoolean("savesInDocuments", false)) {
@@ -719,7 +725,7 @@ class MainActivity : AppCompatActivity() {
             setOnClickListener {
                 val resume = pauseForUi()
                 val pm = PopupMenu(this@MainActivity, it as Button)
-                pm.menu.add("Redo").isEnabled = cursor < history.size - 1
+                pm.menu.add("Redo").isEnabled = redoStack.isNotEmpty()
                 pm.menu.add("New city")
                 pm.menu.add("Save city")
                 pm.menu.add("Load city")
@@ -739,9 +745,8 @@ class MainActivity : AppCompatActivity() {
                                 MicropolisNative.saveCity(handle, autosavePath)   // reset autosave to the new city
                                 cityReady = true
                                 ui.post {
-                                    resetHistory()                 // drop the old city's undo snapshots
+                                    resetHistory()                 // undo does not cross cities
                                     promptCityName(isFirst = true, onDismiss = resume)
-                                    commitSnapshot()               // seed with the new city
                                 }
                             }
                             handedOff = true
@@ -997,15 +1002,27 @@ class MainActivity : AppCompatActivity() {
         disasterFreq = prefs.getInt("disasterFreq", 2)
 
         // Set up tap listener
+        mapView.onStrokeStart = {
+            sim.post {
+                MicropolisNative.copyTiles(handle, strokeBefore)
+                val s = IntArray(10); MicropolisNative.getStats(handle, s); strokeFundsBefore = s[1]
+            }
+            strokeMinX = Int.MAX_VALUE; strokeMinY = Int.MAX_VALUE; strokeMaxX = -1; strokeMaxY = -1
+        }
         mapView.onTileTap = { tileX, tileY ->
             val tool = currentTool
+            // grow the stroke's box by what this tool covers (footprint n > 1 anchors at x-1, y-1)
+            val n = footprintOf(tool)
+            val x0 = if (n > 1) tileX - 1 else tileX; val y0 = if (n > 1) tileY - 1 else tileY
+            strokeMinX = minOf(strokeMinX, x0); strokeMinY = minOf(strokeMinY, y0)
+            strokeMaxX = maxOf(strokeMaxX, x0 + n - 1); strokeMaxY = maxOf(strokeMaxY, y0 + n - 1)
             sim.post {
                 val r = MicropolisNative.doTool(handle, tool, tileX, tileY)
                 if (r == 1) ui.post { if (tool == 7) sfx.bulldoze() else sfx.build() }
             }
         }
-        // One snapshot per build stroke drives Undo/Redo.
-        mapView.onStrokeEnd = { built -> if (built) commitSnapshot() }
+        // One BuildEdit per build stroke drives Undo/Redo.
+        mapView.onStrokeEnd = { built -> if (built) commitBuild() }
         // Wire minimap
         minimap.onTileSelected = { tx, ty ->
             mapView.centerOnTile(tx, ty)
@@ -1028,14 +1045,12 @@ class MainActivity : AppCompatActivity() {
                 ui.post {
                     cityName = prefs.getString("cityName", "Micropolis") ?: "Micropolis"
                     cityTitle.text = cityName
-                    commitSnapshot()   // seed the undo history with the restored city
                 }
             } else {
                 MicropolisNative.generateRandomCity(handle)
                 cityReady = true
                 ui.post {
                     promptCityName(isFirst = true)   // name a brand-new city
-                    commitSnapshot()                 // seed the undo history with the starting city
                 }
             }
         }
@@ -1054,8 +1069,6 @@ class MainActivity : AppCompatActivity() {
         mapView.straightLineTool = isStraightLineTool(currentTool)
         mapView.tapOnlyTool = currentTool == 5   // Query: tap to inspect, never on drag/pinch
     }
-
-    private fun newSnapPath(): String { snapSeq++; return java.io.File(snapDir, "s$snapSeq.cty").absolutePath }
 
     private fun showBanner(text: String) {
         messageBanner.text = text
@@ -1095,35 +1108,59 @@ class MainActivity : AppCompatActivity() {
             subtitle = "Tile ($x, $y)")
     }
 
-    /** Snapshot the current (post-build) state as the new head, dropping any redo branch. */
-    private fun commitSnapshot() {
-        // drop the redo branch (everything after the cursor)
-        while (history.size > cursor + 1) { java.io.File(history.removeAt(history.size - 1)).delete() }
-        val path = newSnapPath()
-        sim.post { MicropolisNative.saveCity(handle, path) }
-        history.add(path); cursor = history.size - 1
-        // trim the oldest snapshot if over the cap
-        while (history.size > undoCap) { java.io.File(history.removeAt(0)).delete(); cursor-- }
-        updateUndoButtons()
+    /** Record the stroke just finished: diff its box (+1 tile for re-shaped neighbours) and its cost. */
+    private fun commitBuild() {
+        if (strokeMaxX < 0) return
+        val bx0 = maxOf(0, strokeMinX - 1); val by0 = maxOf(0, strokeMinY - 1)
+        val bx1 = minOf(119, strokeMaxX + 1); val by1 = minOf(99, strokeMaxY + 1)
+        sim.post {   // FIFO: runs after the stroke's doTool calls
+            val after = ShortArray(120 * 100)
+            MicropolisNative.copyTiles(handle, after)
+            val s = IntArray(10); MicropolisNative.getStats(handle, s)
+            val cost = (strokeFundsBefore - s[1]).coerceAtLeast(0)
+            val idx = ArrayList<Int>()
+            for (x in bx0..bx1) for (y in by0..by1) { val i = x * 100 + y; if (strokeBefore[i] != after[i]) idx.add(i) }
+            if (idx.isEmpty()) return@post
+            val edit = BuildEdit(idx.toIntArray(),
+                ShortArray(idx.size) { strokeBefore[idx[it]] }, ShortArray(idx.size) { after[idx[it]] }, cost)
+            ui.post {
+                undoStack.addLast(edit)
+                while (undoStack.size > undoCap) undoStack.removeFirst()
+                redoStack.clear()
+                updateUndoButtons()
+            }
+        }
     }
 
+    /** Put back the tiles of the last build and refund it. Time and growth elsewhere are untouched. */
     private fun undo() {
-        if (cursor > 0) { cursor--; sim.post { MicropolisNative.loadCity(handle, history[cursor]) }; updateUndoButtons() }
+        val e = undoStack.removeLastOrNull() ?: return
+        redoStack.addLast(e); updateUndoButtons()
+        sim.post {
+            for (k in e.idx.indices) { val i = e.idx[k]; MicropolisNative.setTile(handle, i / 100, i % 100, e.before[k].toInt() and 0xFFFF) }
+            val s = IntArray(10); MicropolisNative.getStats(handle, s)
+            MicropolisNative.setFunds(handle, s[1] + e.cost)
+        }
     }
 
     private fun redo() {
-        if (cursor < history.size - 1) { cursor++; sim.post { MicropolisNative.loadCity(handle, history[cursor]) }; updateUndoButtons() }
+        val e = redoStack.removeLastOrNull() ?: return
+        undoStack.addLast(e); updateUndoButtons()
+        sim.post {
+            for (k in e.idx.indices) { val i = e.idx[k]; MicropolisNative.setTile(handle, i / 100, i % 100, e.after[k].toInt() and 0xFFFF) }
+            val s = IntArray(10); MicropolisNative.getStats(handle, s)
+            MicropolisNative.setFunds(handle, s[1] - e.cost)
+        }
     }
 
     private fun updateUndoButtons() {
-        val canUndo = cursor > 0
+        val canUndo = undoStack.isNotEmpty()
         undoBtn.isEnabled = canUndo; undoBtn.alpha = if (canUndo) 1f else 0.35f
     }
 
-    /** Drop all undo snapshots (used when starting a fresh city). */
+    /** Drop the undo/redo history (new city or loaded city). */
     private fun resetHistory() {
-        for (p in history) java.io.File(p).delete()
-        history.clear(); cursor = -1
+        undoStack.clear(); redoStack.clear()
         updateUndoButtons()
     }
 

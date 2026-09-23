@@ -309,6 +309,16 @@ void micropolis_set_funding(MicropolisEngine *e, int road_pct, int fire_pct, int
     e->sim->setAutoBudget(false);
 }
 
+void micropolis_set_tile(MicropolisEngine *e, int x, int y, unsigned short value) {
+    if (!e || x < 0 || y < 0 || x >= MICROPOLIS_MAP_W || y >= MICROPOLIS_MAP_H) return;
+    e->sim->setTile(x, y, value);
+    e->sim->invalidateMaps();
+}
+
+void micropolis_set_funds(MicropolisEngine *e, int funds) {
+    if (e) e->sim->setFunds(funds);
+}
+
 void micropolis_set_enable_disasters(MicropolisEngine *e, int on) {
     if (!e) return;
     e->sim->setEnableDisasters(on != 0);
