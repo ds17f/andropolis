@@ -1,0 +1,24 @@
+Build and run a city. Zone land for homes, shops and industry, connect it with roads,
+rail and power, balance the budget, and keep your citizens happy — while fires, floods,
+tornadoes and the occasional monster try to spoil your plans.
+
+This is a native Android port of <b>MicropolisCore</b>, the GPL release of the original
+city simulator by Will Wright. The simulation engine is the original C++ code.
+
+<b>Features</b>
+<ul>
+<li>The full classic simulation: zones, traffic, pollution, crime, land value, budget, evaluation</li>
+<li>The 8 original scenarios (Dullsville, San Francisco, Hamburg, Bern, Tokyo, Detroit, Boston, Rio) and 23 sample cities</li>
+<li>New maps with terrain choices: trees, lakes, rivers, islands</li>
+<li>Touch controls: drag roads and power lines, place buildings with a preview, per-build undo</li>
+<li>Overlays, graphs, messages, the citizens' opinion poll and the annual report</li>
+<li>Optional background play: the city keeps going while the app is closed, at a pace you choose, and notifies you when something happens</li>
+<li>Saves are plain files you can copy and share</li>
+<li>No ads, no tracking, no network access</li>
+</ul>
+
+Micropolis is a registered trademark of Micropolis Corporation (Micropolis GmbH) and is used
+here under the Micropolis Public Name License. SimCity is a trademark of Electronic Arts; this
+app is not affiliated with or endorsed by Electronic Arts.
+
+Source code (GPL-3.0): https://github.com/ds17f/micropolis-port

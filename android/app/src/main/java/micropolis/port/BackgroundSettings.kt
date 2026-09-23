@@ -124,5 +124,16 @@ internal fun MainActivity.backgroundSettingsTab(): View {
     }
     col.addView(testBtn)
 
+    // Exact alarms (Android 12+) are a special permission the user grants in system settings.
+    if (android.os.Build.VERSION.SDK_INT >= 31 &&
+        !getSystemService(android.app.AlarmManager::class.java).canScheduleExactAlarms()) {
+        col.addView(settingsToggle("Exact timing",
+            "Allow exact alarms so notifications arrive right when events happen (else they can be a few minutes late).",
+            false) { c ->
+            if (c) startActivity(android.content.Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                android.net.Uri.parse("package:$packageName")))
+        })
+    }
+
     return col
 }

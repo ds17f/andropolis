@@ -1,0 +1,29 @@
+# Draft metadata for the F-Droid submission (a merge request to
+# https://gitlab.com/fdroid/fdroiddata adding metadata/io.github.ds17f.micropolis.yml).
+# See RELEASING.md. F-Droid builds the tag from source and signs it itself.
+Categories:
+  - Games
+License: GPL-3.0-or-later
+AuthorName: Damian Silbergleith
+SourceCode: https://github.com/ds17f/micropolis-port
+IssueTracker: https://github.com/ds17f/micropolis-port/issues
+
+AutoName: Micropolis
+
+RepoType: git
+Repo: https://github.com/ds17f/micropolis-port.git
+
+Builds:
+  - versionName: 0.1.0
+    versionCode: 1
+    commit: v0.1.0
+    subdir: android/app
+    submodules: true
+    gradle:
+      - yes
+    ndk: 30.0.16248370
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: 0.1.0
+CurrentVersionCode: 1

@@ -1,0 +1,70 @@
+# A tag vX.Y.Z (made by scripts/release.sh): signed APK + AAB, a GitHub Release with the
+# APK, and — once the Play secret exists — an upload to the Play internal testing track.
+# F-Droid builds from the same tag on its own servers (see fdroid/ and RELEASING.md).
+name: Release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 != '' }}
+      HAS_PLAY: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - name: NDK and CMake
+        run: sdkmanager --install "ndk;30.0.16248370" "cmake;3.22.1"
+      - name: Version (tag must match versionName)
+        id: ver
+        run: |
+          v=$(grep -oP 'versionName = "\K[^"]+' android/app/build.gradle.kts)
+          c=$(grep -oP 'versionCode = \K[0-9]+' android/app/build.gradle.kts)
+          test "v$v" = "${GITHUB_REF_NAME}" || { echo "tag ${GITHUB_REF_NAME} != versionName $v"; exit 1; }
+          echo "code=$c" >> "$GITHUB_OUTPUT"
+      - name: Engine tests (host build)
+        run: |
+          cmake -S android -B android/build-host -DCMAKE_BUILD_TYPE=Release
+          cmake --build android/build-host -j
+          ./android/build-host/engine/micropolis_abi_smoke
+          ./android/build-host/engine/micropolis_determinism
+          MALLOC_PERTURB_=77 ./android/build-host/engine/micropolis_sprites
+      - name: Keystore
+        if: env.HAS_KEYSTORE == 'true'
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          echo "MICROPOLIS_KEYSTORE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Release APK + AAB
+        env:
+          MICROPOLIS_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          MICROPOLIS_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          MICROPOLIS_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./android/gradlew -p android :app:assembleRelease :app:bundleRelease
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            android/app/build/outputs/apk/release/*.apk
+          body_path: fastlane/metadata/android/en-US/changelogs/${{ steps.ver.outputs.code }}.txt
+          fail_on_unmatched_files: false
+      - name: Upload to Google Play (internal testing)
+        if: env.HAS_PLAY == 'true' && env.HAS_KEYSTORE == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: io.github.ds17f.micropolis
+          releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed

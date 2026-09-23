@@ -1,0 +1,35 @@
+# Every push to main and every pull request: engine tests on the host, then a debug APK.
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - name: NDK and CMake
+        run: sdkmanager --install "ndk;30.0.16248370" "cmake;3.22.1"
+      - name: Engine tests (host build)
+        run: |
+          cmake -S android -B android/build-host -DCMAKE_BUILD_TYPE=Release
+          cmake --build android/build-host -j
+          ./android/build-host/engine/micropolis_abi_smoke
+          ./android/build-host/engine/micropolis_determinism
+          MALLOC_PERTURB_=77 ./android/build-host/engine/micropolis_sprites
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Debug APK
+        run: ./android/gradlew -p android :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: micropolis-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
