@@ -1,8 +1,7 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp" android:height="24dp"
     android:viewportWidth="24" android:viewportHeight="24">
-    <!-- Tree: rounded canopy over a short trunk. All cubic beziers / lines so
-         Android's VectorDrawable parser accepts it (no compressed arc flags). -->
+    <!-- Park: a fir tree (three stacked tiers on a trunk). Straight lines only. -->
     <path android:fillColor="#FFFFFFFF"
-        android:pathData="M12,2 C8.4,2 5.5,4.9 5.5,8.5 C5.5,11.4 7.4,13.8 10,14.7 L10,20 C10,20.6 10.4,21 11,21 L13,21 C13.6,21 14,20.6 14,20 L14,14.7 C16.6,13.8 18.5,11.4 18.5,8.5 C18.5,4.9 15.6,2 12,2 Z"/>
+        android:pathData="M12,2 L6.5,8.5 L9.2,8.5 L5.5,13.5 L8.4,13.5 L4.5,18.5 L10.8,18.5 L10.8,22 L13.2,22 L13.2,18.5 L19.5,18.5 L15.6,13.5 L18.5,13.5 L14.8,8.5 L17.5,8.5 Z"/>
 </vector>

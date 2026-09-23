@@ -87,8 +87,10 @@ internal fun MainActivity.pauseForUi(): () -> Unit {
 internal fun MainActivity.updatePill() {
     val move = currentTool == MOVE_TOOL
     val ti = if (move) moveItem else allTools.first { it.value == currentTool }
-    toolFab.text = ti.label
+    val cost = costOf(ti.value)
+    toolFab.text = if (move) ti.label else if (cost == 0) "${ti.label} · Free" else "${ti.label} · $$cost"
     toolFab.setIconResource(ti.icon)
+    toolFab.extend()                     // always show the name (and cost), never icon-only
     dropToolFab.visibility = if (move) View.GONE else View.VISIBLE
     mapView.moveMode = move
     mapView.toolFootprint = if (move) 1 else footprintOf(currentTool)
