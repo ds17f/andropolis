@@ -389,7 +389,7 @@ class MainActivity : AppCompatActivity() {
         val monthName = months.getOrElse(month) { "?" }
         ui.post {
             subtitle.text = "$monthName $year"
-            fundsValue.text = "$\$$funds"
+            fundsValue.text = "\$$funds"
             popValue.text = "$pop"
             scoreValue.text = "$score"
         }
