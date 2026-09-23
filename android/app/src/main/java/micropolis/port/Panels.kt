@@ -172,12 +172,14 @@ internal fun MainActivity.showOverflowMenu(anchor: View) {
     pm.menu.add("Load city")
     pm.menu.add("Messages")
     pm.menu.add("Settings")
+    pm.menu.add("How to play")
     var handedOff = false
     pm.setOnMenuItemClickListener { item ->
         when (item.title) {
             "Redo" -> redo()
             "Messages" -> { handedOff = true; showMessagesPanel(resume) }
             "Settings" -> { handedOff = true; showSettingsPanel(resume) }
+            "How to play" -> { handedOff = true; showHelp(resume) }
             "New city" -> {
                 cityReady = false
                 sim.post {
