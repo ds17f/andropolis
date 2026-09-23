@@ -102,7 +102,8 @@ internal fun MainActivity.tickLoop() {
         popValue.text = "%,d".format(pop)
         scoreValue.text = "$score"
     }
-    val yearRolled = lastReportYear != -1 && year > lastReportYear && annualReportEnabled
+    // Only a real new year (+1). A different year means another city was loaded: no report.
+    val yearRolled = lastReportYear != -1 && year == lastReportYear + 1 && annualReportEnabled
     lastReportYear = year
     if (yearRolled) {
         ui.post {
