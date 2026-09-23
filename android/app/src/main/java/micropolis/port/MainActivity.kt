@@ -52,6 +52,8 @@ class MainActivity : AppCompatActivity() {
     private val overlayNames = arrayOf("Off","Population","Traffic","Pollution","Land value","Crime","Growth","Power")
     private var annualReportEnabled = true
     private var lastReportYear = -1
+    private var minimapNav = false          // Settings: minimap navigation mode
+    private val navZoom = 5f                 // fixed zoom when minimap navigation is on
     private val eventBuf = IntArray(9)
     private lateinit var messageBanner: TextView
     private val bannerHide = Runnable { messageBanner.visibility = View.GONE }
@@ -475,9 +477,11 @@ class MainActivity : AppCompatActivity() {
                 pm.menu.add("City evaluation")
                 pm.menu.add(if (annualReportEnabled) "Annual report: On" else "Annual report: Off")
                 pm.menu.add("Tax rate — ${taxRates[taxIdx]}%")
+                pm.menu.add("Settings")
                 pm.setOnMenuItemClickListener { item ->
                     when (item.title) {
                         "Redo" -> redo()
+                        "Settings" -> showSettingsPanel()
                         "New city" -> {
                             cityReady = false
                             sim.post {
@@ -756,6 +760,8 @@ class MainActivity : AppCompatActivity() {
         // Wire minimap
         minimap.onTileSelected = { tx, ty -> mapView.centerOnTile(tx, ty) }
         mapView.onViewportChanged = { l, t, r, b -> minimap.setViewport(l, t, r, b) }
+        minimapNav = prefs.getBoolean("minimapNav", false)
+        applyMinimapMode()
 
         // Setup on sim thread
         sim.post {
@@ -1072,6 +1078,49 @@ class MainActivity : AppCompatActivity() {
                     onAction = { if (resume && speed == 0) { speed = lastRunSpeed; updatePlayPauseText(); updateSpeedChipText() } })
             }
         }
+    }
+
+    private fun applyMinimapMode() {
+        if (minimapNav) {
+            minimap.visibility = View.VISIBLE
+            mapView.setNavLocked(true, navZoom)
+        } else {
+            minimap.visibility = View.GONE
+            mapView.setNavLocked(false, navZoom)
+        }
+    }
+
+    private fun showSettingsPanel() {
+        showPanel("Settings", listOf(PanelTab("General") {
+            LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = android.view.Gravity.CENTER_VERTICAL
+                    setPadding(0, dp(10), 0, dp(10))
+                    addView(LinearLayout(this@MainActivity).apply {
+                        orientation = LinearLayout.VERTICAL
+                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                        addView(TextView(this@MainActivity).apply {
+                            text = "Minimap navigation"; setTextColor(0xFFEEF2F6.toInt()); textSize = 15f
+                            setTypeface(null, android.graphics.Typeface.BOLD)
+                        })
+                        addView(TextView(this@MainActivity).apply {
+                            text = "Show the minimap and move with it (fixed zoom). Off = pinch zoom."
+                            setTextColor(0xFF9AA7B4.toInt()); textSize = 12f
+                        })
+                    })
+                    addView(android.widget.Switch(this@MainActivity).apply {
+                        isChecked = minimapNav
+                        setOnCheckedChangeListener { _, checked ->
+                            minimapNav = checked
+                            prefs.edit().putBoolean("minimapNav", checked).apply()
+                            applyMinimapMode()
+                        }
+                    })
+                })
+            }
+        }))
     }
 
     override fun onPause() {

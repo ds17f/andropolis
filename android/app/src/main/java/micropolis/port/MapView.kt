@@ -84,8 +84,15 @@ class MapView(context: Context) : View(context) {
     private var axisLock = 0               // 0 undecided, 1 horizontal, 2 vertical
     private val strokeBuilt = HashSet<Long>()
     var straightLineTool = false           // set by MainActivity for road/rail/wire
+    private var navLocked = false          // minimap-navigation mode: fixed zoom, no pinch/pan
 
     private val scaleDetector = ScaleGestureDetector(context, ScaleListener())
+
+    /** Lock to a fixed zoom and disable pinch/two-finger pan (minimap navigation), or unlock. */
+    fun setNavLocked(locked: Boolean, fixedScale: Float) {
+        navLocked = locked
+        if (locked) { scale = fixedScale; clampPan(); invalidate() }
+    }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
@@ -100,7 +107,7 @@ class MapView(context: Context) : View(context) {
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        scaleDetector.onTouchEvent(event)
+        if (!navLocked) scaleDetector.onTouchEvent(event)
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 built = false
@@ -121,7 +128,7 @@ class MapView(context: Context) : View(context) {
                     anchorY = tileYat(event.y)
                 }
             }
-            MotionEvent.ACTION_POINTER_DOWN -> {
+            MotionEvent.ACTION_POINTER_DOWN -> if (!navLocked) {
                 built = false
                 panning = true
                 pendingDown = false      // cancel the tentative tap: no stray tile
@@ -133,7 +140,7 @@ class MapView(context: Context) : View(context) {
                 lastFocusY = focusY(event)
             }
             MotionEvent.ACTION_MOVE -> {
-                if (event.pointerCount >= 2) {
+                if (event.pointerCount >= 2 && !navLocked) {
                     val fx = focusX(event)
                     val fy = focusY(event)
                     panX += fx - lastFocusX
