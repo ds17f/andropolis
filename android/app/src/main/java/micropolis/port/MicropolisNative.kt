@@ -45,4 +45,15 @@ object MicropolisNative {
 
     /** Set the city tax rate (percent, 0..20). */
     external fun setCityTax(handle: Long, tax: Int)
+
+    /**
+     * Fill dst (ByteArray, len >= 12000) column-major dst[x*H+y] with 0..255
+     * intensity for the overlay (see MicropolisOverlay). Returns tiles written.
+     */
+    external fun copyOverlay(handle: Long, overlay: Int, dst: ByteArray): Int
+    /** Fill dst (len >= 120) oldest-first (dst[119] newest). Returns samples. */
+    external fun getHistory(handle: Long, history: Int, scale: Int, dst: IntArray): Int
+    external fun makeDisaster(handle: Long, disaster: Int)
+    external fun setFunding(handle: Long, roadPct: Int, firePct: Int, policePct: Int)
+    external fun setAutoBudget(handle: Long, on: Int)
 }

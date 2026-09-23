@@ -119,4 +119,37 @@ Java_micropolis_port_MicropolisNative_setCityTax(JNIEnv *, jobject, jlong h, jin
     micropolis_set_city_tax(eng(h), tax);
 }
 
+JNIEXPORT jint JNICALL
+Java_micropolis_port_MicropolisNative_copyOverlay(JNIEnv *env, jobject, jlong h, jint overlay, jbyteArray dst) {
+    jsize len = env->GetArrayLength(dst);
+    jbyte *buf = env->GetByteArrayElements(dst, nullptr);
+    int n = micropolis_copy_overlay(eng(h), overlay, reinterpret_cast<unsigned char *>(buf), (int) len);
+    env->ReleaseByteArrayElements(dst, buf, 0);
+    return n;
+}
+
+JNIEXPORT jint JNICALL
+Java_micropolis_port_MicropolisNative_getHistory(JNIEnv *env, jobject, jlong h, jint history, jint scale, jintArray dst) {
+    jsize len = env->GetArrayLength(dst);
+    jint *buf = env->GetIntArrayElements(dst, nullptr);
+    int n = micropolis_get_history(eng(h), history, scale, buf, (int) len);
+    env->ReleaseIntArrayElements(dst, buf, 0);
+    return n;
+}
+
+JNIEXPORT void JNICALL
+Java_micropolis_port_MicropolisNative_makeDisaster(JNIEnv *, jobject, jlong h, jint disaster) {
+    micropolis_make_disaster(eng(h), disaster);
+}
+
+JNIEXPORT void JNICALL
+Java_micropolis_port_MicropolisNative_setFunding(JNIEnv *, jobject, jlong h, jint roadPct, jint firePct, jint policePct) {
+    micropolis_set_funding(eng(h), roadPct, firePct, policePct);
+}
+
+JNIEXPORT void JNICALL
+Java_micropolis_port_MicropolisNative_setAutoBudget(JNIEnv *, jobject, jlong h, jint on) {
+    micropolis_set_auto_budget(eng(h), on);
+}
+
 } /* extern "C" */

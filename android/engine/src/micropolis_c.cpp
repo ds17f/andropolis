@@ -207,4 +207,110 @@ int micropolis_do_tool(MicropolisEngine *e, int tool, int x, int y) {
     return int(result);
 }
 
+int micropolis_copy_overlay(const MicropolisEngine *e, int overlay, unsigned char *dst, int dst_len) {
+    if (!e || !dst || dst_len < MICROPOLIS_MAP_W * MICROPOLIS_MAP_H || overlay == MICROPOLIS_OVERLAY_NONE) {
+        return 0;
+    }
+    
+    // Copy in column-major order: dst[x * H + y]
+    for (int x = 0; x < MICROPOLIS_MAP_W; x++) {
+        for (int y = 0; y < MICROPOLIS_MAP_H; y++) {
+            unsigned char val = 0;
+            switch (overlay) {
+                case MICROPOLIS_OVERLAY_POPULATION:
+                    val = (unsigned char)e->sim->populationDensityMap.worldGet(x, y);
+                    break;
+                case MICROPOLIS_OVERLAY_TRAFFIC:
+                    val = (unsigned char)e->sim->trafficDensityMap.worldGet(x, y);
+                    break;
+                case MICROPOLIS_OVERLAY_POLLUTION:
+                    val = (unsigned char)e->sim->pollutionDensityMap.worldGet(x, y);
+                    break;
+                case MICROPOLIS_OVERLAY_LANDVALUE:
+                    val = (unsigned char)e->sim->landValueMap.worldGet(x, y);
+                    break;
+                case MICROPOLIS_OVERLAY_CRIME:
+                    val = (unsigned char)e->sim->crimeRateMap.worldGet(x, y);
+                    break;
+                case MICROPOLIS_OVERLAY_GROWTH: {
+                    short g = e->sim->rateOfGrowthMap.worldGet(x, y);
+                    int v = 128 + g;
+                    if (v < 0) v = 0;
+                    if (v > 255) v = 255;
+                    val = (unsigned char)v;
+                    break;
+                }
+                case MICROPOLIS_OVERLAY_POWER:
+                    val = e->sim->powerGridMap.worldGet(x, y) ? 255 : 0;
+                    break;
+                default:
+                    val = 0;
+                    break;
+            }
+            dst[x * MICROPOLIS_MAP_H + y] = val;
+        }
+    }
+    return MICROPOLIS_MAP_W * MICROPOLIS_MAP_H;
+}
+
+int micropolis_get_history(const MicropolisEngine *e, int history, int scale, int *dst, int dst_len) {
+    if (!e || !dst || dst_len < MICROPOLIS_HISTORY_LEN ||
+        history < MICROPOLIS_HIST_RES || history > MICROPOLIS_HIST_POLLUTION ||
+        scale < 0 || scale > 1) {
+        return 0;
+    }
+    
+    int histType;
+    switch (history) {
+        case MICROPOLIS_HIST_RES:       histType = 0; break;
+        case MICROPOLIS_HIST_COM:       histType = 1; break;
+        case MICROPOLIS_HIST_IND:       histType = 2; break;
+        case MICROPOLIS_HIST_MONEY:     histType = 3; break;
+        case MICROPOLIS_HIST_CRIME:     histType = 4; break;
+        case MICROPOLIS_HIST_POLLUTION: histType = 5; break;
+        default:                        histType = 0; break;
+    }
+    
+    // Fill oldest-first: dst[0] oldest, dst[LEN-1] newest
+    for (int i = 0; i < MICROPOLIS_HISTORY_LEN; i++) {
+        dst[i] = e->sim->getHistory(histType, scale, (MICROPOLIS_HISTORY_LEN - 1) - i);
+    }
+    return MICROPOLIS_HISTORY_LEN;
+}
+
+void micropolis_make_disaster(MicropolisEngine *e, int disaster) {
+    if (!e) return;
+    switch (disaster) {
+        case MICROPOLIS_DISASTER_FIRE:       e->sim->makeFire(); break;
+        case MICROPOLIS_DISASTER_FLOOD:      e->sim->makeFlood(); break;
+        case MICROPOLIS_DISASTER_TORNADO:    e->sim->makeTornado(); break;
+        case MICROPOLIS_DISASTER_EARTHQUAKE: e->sim->makeEarthquake(); break;
+        case MICROPOLIS_DISASTER_MONSTER:    e->sim->makeMonster(); break;
+        case MICROPOLIS_DISASTER_MELTDOWN:   e->sim->makeMeltdown(); break;
+        default:                             break;
+    }
+}
+
+void micropolis_set_funding(MicropolisEngine *e, int road_pct, int fire_pct, int police_pct) {
+    if (!e) return;
+    
+    // Clamp to 0..100
+    if (road_pct < 0) road_pct = 0;
+    if (road_pct > 100) road_pct = 100;
+    if (fire_pct < 0) fire_pct = 0;
+    if (fire_pct > 100) fire_pct = 100;
+    if (police_pct < 0) police_pct = 0;
+    if (police_pct > 100) police_pct = 100;
+    
+    e->sim->roadPercent = road_pct / 100.0f;
+    e->sim->firePercent = fire_pct / 100.0f;
+    e->sim->policePercent = police_pct / 100.0f;
+    e->sim->setAutoBudget(false);
+}
+
+void micropolis_set_auto_budget(MicropolisEngine *e, int on) {
+    if (!e) return;
+    e->sim->setAutoBudget(on != 0);
+}
+
 } /* extern "C" */
