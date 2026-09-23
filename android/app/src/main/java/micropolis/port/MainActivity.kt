@@ -46,6 +46,11 @@ class MainActivity : AppCompatActivity() {
     private var lastAutosaveMs = 0L          // internal resume file (autosave.cty), every 30 s
     private var lastPublicAutosaveMs = 0L    // timestamped autosave in Documents/Micropolis, every 5 min
     private var pickerResume: () -> Unit = {}
+    private var disasterFreq = 2                                  // 0 Off, 1 Rare, 2 Normal, 3 Frequent
+    private val disasterFreqNames = arrayOf("Off", "Rare", "Normal", "Frequent")
+    private val disasterYearsPer = intArrayOf(0, 10, 5, 1)        // average years between disasters
+    private var lastDisasterMonth = -1
+    private val random = java.util.Random()
 
     // Load / Save-as go through the system file picker (see CitySaves).
     private val loadPicker = registerForActivityResult(CitySaves.OpenCity()) { uri ->
@@ -989,6 +994,7 @@ class MainActivity : AppCompatActivity() {
 
         // Set up annual report state
         annualReportEnabled = prefs.getBoolean("annualReport", true)
+        disasterFreq = prefs.getInt("disasterFreq", 2)
 
         // Set up tap listener
         mapView.onTileTap = { tileX, tileY ->
@@ -1240,6 +1246,20 @@ class MainActivity : AppCompatActivity() {
                 grid
             },
             PanelTab("Disasters") {
+                val grid = android.widget.GridLayout(this).apply { columnCount = 4 }
+                val handles = ArrayList<CardHandle>()
+                fun select(sel: Int) { handles.forEachIndexed { i, h -> h.setSelected(i == sel) } }
+                for (i in disasterFreqNames.indices) {
+                    val h = panelCard(disasterFreqNames[i], "%s ($%s)".format(disasterFreqNames[i], if (i == 0) "Off" else "$i.0yr")) {
+                        disasterFreq = i; prefs.edit().putInt("disasterFreq", i).apply()
+                        select(i)
+                    }
+                    handles.add(h); addCard(grid, h)
+                }
+                select(disasterFreq)
+                grid
+            },
+            PanelTab("Manual") {
                 val names = arrayOf("Fire","Flood","Tornado","Earthquake","Monster","Meltdown")
                 val glyphs = arrayOf("🔥","🌊","🌪","⛰","👾","☢")
                 val grid = android.widget.GridLayout(this).apply { columnCount = 3 }
@@ -1301,6 +1321,21 @@ class MainActivity : AppCompatActivity() {
         val months = arrayOf("Jan","Feb","Mar","Apr","May","Jun",
                             "Jul","Aug","Sep","Oct","Nov","Dec")
         val monthName = months.getOrElse(month) { "?" }
+        
+        // Disaster frequency logic: once per new game month
+        val monthKey = year * 12 + month
+        if (monthKey != lastDisasterMonth) {
+            if (lastDisasterMonth != -1 && disasterFreq > 0 && speed != 0) {
+                val months = disasterYearsPer[disasterFreq] * 12
+                if (random.nextInt(months) == 0) {
+                    // weight like the original: fires most common, meltdown rarest
+                    val kind = intArrayOf(0, 0, 1, 2, 3, 4, 0, 5)[random.nextInt(8)]
+                    MicropolisNative.makeDisaster(handle, kind)
+                }
+            }
+            lastDisasterMonth = monthKey
+        }
+        
         ui.post {
             subtitle.text = "$monthName $year"
             fundsValue.text = "\$$funds"
