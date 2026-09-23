@@ -21,7 +21,8 @@ Deeper design notes for the big items live in `BACKLOG.md`.
 - [x] 020 — Modern top app bar + actions menu (redesign stage 1)  ✅ merged
 - [x] 013 — Speed of play: pause / slow / med / fast (tick-loop based)  ✅ merged
 - [x] 014 — Tax rate control (`setCityTax` binding + UI)  ✅ merged
-- [x] 015 — Selected-tool highlight  ✅ merged  (icons/grouping still TODO)
+- [x] 015 — Selected-tool highlight  ✅ merged
+- [x] 020-023 — Full modern UI redesign: top bar + ⋮ menu, categorized icon palette (bottom sheet), contextual build controls  ✅ merged
 - [x] Budget window (016+017)  ✅ merged
 - [x] City evaluation window (016+017)  ✅ merged
 - [ ] Map overlays (power, crime, pollution, land value, pop density, traffic)
