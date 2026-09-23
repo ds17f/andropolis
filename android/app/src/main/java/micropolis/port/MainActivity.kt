@@ -82,6 +82,95 @@ class MainActivity : AppCompatActivity() {
 
     class PanelTab(val title: String, val build: () -> View)
 
+    private class CityData(
+        val funds: Int, val taxRate: Int,
+        val roadPct: Int, val firePct: Int, val policePct: Int,
+        val pop: Int, val cityClass: Int, val approval: Int,
+        val crime: Int, val pollution: Int, val landValue: Int, val traffic: Int, val density: Int
+    )
+
+    private val cityClassNames = arrayOf("Village","Town","City","Capital","Metropolis","Megalopolis")
+
+    private fun avgOverlay(kind: Int): Int {
+        val a = ByteArray(120 * 100)
+        val n = MicropolisNative.copyOverlay(handle, kind, a)
+        if (n <= 0) return 0
+        var sum = 0L
+        for (b in a) sum += (b.toInt() and 0xFF)
+        return (sum / a.size).toInt()
+    }
+
+    private fun showCityPanel() {
+        sim.post {
+            val b = IntArray(12); MicropolisNative.getBudget(handle, b)
+            val ev = IntArray(7); MicropolisNative.getEvaluation(handle, ev)
+            val d = CityData(
+                funds = b[0], taxRate = b[1], roadPct = b[5], policePct = b[8], firePct = b[11],
+                pop = ev[3], cityClass = ev[2], approval = ev[6],
+                crime = avgOverlay(5), pollution = avgOverlay(3), landValue = avgOverlay(4),
+                traffic = avgOverlay(2), density = avgOverlay(1)
+            )
+            ui.post { showCityPanelUI(d) }
+        }
+    }
+
+    private fun showCityPanelUI(d: CityData) {
+        var road = d.roadPct; var fire = d.firePct; var police = d.policePct
+        fun label(text: String) = TextView(this).apply {
+            this.text = text; setTextColor(0xFFEEF2F6.toInt()); textSize = 14f; setPadding(0, dp(10), 0, dp(2))
+        }
+        fun muted(text: String) = TextView(this).apply {
+            this.text = text; setTextColor(0xFF9AA7B4.toInt()); textSize = 13f; setPadding(0, dp(2), 0, dp(2))
+        }
+        fun sliderRow(title: String, value: Int, max: Int, suffix: String, onApply: (Int) -> Unit): View {
+            val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            val head = label("$title: $value$suffix")
+            col.addView(head)
+            col.addView(android.widget.SeekBar(this).apply {
+                this.max = max; progress = value
+                setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(sb: android.widget.SeekBar, p: Int, fromUser: Boolean) { head.text = "$title: $p$suffix" }
+                    override fun onStartTrackingTouch(sb: android.widget.SeekBar) {}
+                    override fun onStopTrackingTouch(sb: android.widget.SeekBar) { onApply(sb.progress) }
+                })
+            })
+            return col
+        }
+        showPanel("City", listOf(
+            PanelTab("Budget") {
+                LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    addView(muted("Funds: \$${d.funds}"))
+                    addView(sliderRow("Tax rate", d.taxRate, 20, "%") { v -> sim.post { MicropolisNative.setCityTax(handle, v) } })
+                    addView(sliderRow("Road funding", road, 100, "%") { v -> road = v; sim.post { MicropolisNative.setFunding(handle, road, fire, police) } })
+                    addView(sliderRow("Fire funding", fire, 100, "%") { v -> fire = v; sim.post { MicropolisNative.setFunding(handle, road, fire, police) } })
+                    addView(sliderRow("Police funding", police, 100, "%") { v -> police = v; sim.post { MicropolisNative.setFunding(handle, road, fire, police) } })
+                }
+            },
+            PanelTab("Stats") {
+                fun statRow(name: String, value: String): View = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(6), 0, dp(6))
+                    addView(TextView(this@MainActivity).apply { text = name; setTextColor(0xFF9AA7B4.toInt()); textSize = 14f
+                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f) })
+                    addView(TextView(this@MainActivity).apply { text = value; setTextColor(0xFFEEF2F6.toInt()); textSize = 14f
+                        setTypeface(null, android.graphics.Typeface.BOLD) })
+                }
+                fun pct(v: Int) = "${v * 100 / 255}"
+                LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    addView(statRow("Population", "${d.pop}"))
+                    addView(statRow("City class", cityClassNames.getOrElse(d.cityClass) { "—" }))
+                    addView(statRow("Approval", "${d.approval}%"))
+                    addView(statRow("Crime", pct(d.crime)))
+                    addView(statRow("Pollution", pct(d.pollution)))
+                    addView(statRow("Land value", pct(d.landValue)))
+                    addView(statRow("Traffic", pct(d.traffic)))
+                    addView(statRow("Density", pct(d.density)))
+                }
+            }
+        ))
+    }
+
     private fun roundedBg(color: Int, radiusDp: Int): GradientDrawable {
         val d = GradientDrawable()
         d.setColor(color)
@@ -492,20 +581,7 @@ class MainActivity : AppCompatActivity() {
             setPadding(dp(8), dp(6), dp(8), dp(6))
         }
         panelBar.addView(buildPill("⏩", "Simulation", simState) { showSimulationPanel() })
-        panelBar.addView(buildPill("📊", "City", cityState) {
-            showPanel(
-                "City",
-                listOf(
-                    PanelTab("Soon", {
-                        TextView(this).apply {
-                            text = "City panel — coming soon"
-                            setTextColor(0xFF9AA7B4.toInt())
-                            setPadding(0, dp(8), 0, dp(8))
-                        }
-                    })
-                )
-            )
-        })
+        panelBar.addView(buildPill("📊", "City", cityState) { showCityPanel() })
         panelBar.addView(buildPill("🗺", "Overlay", overlayState) {
             showPanel(
                 "Map overlay",
