@@ -64,7 +64,9 @@ internal fun MainActivity.tickLoop() {
     repeat(ticksPerFrame[sp]) { MicropolisNative.simTick(handle) }
     MicropolisNative.copyTiles(handle, buf)
     val tilesCopy = buf.copyOf()
-    ui.post { mapView.update(tilesCopy); minimap.update(tilesCopy) }
+    val spriteBuf = IntArray(4 * 32)
+    val nSprites = MicropolisNative.copySprites(handle, spriteBuf)
+    ui.post { mapView.update(tilesCopy); minimap.update(tilesCopy); mapView.updateSprites(spriteBuf, nSprites) }
 
     // Refresh overlay when one is active
     if (currentOverlay != 0 && cityReady && handle != 0L) {

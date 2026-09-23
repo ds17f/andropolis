@@ -76,6 +76,10 @@ class MapView(context: Context) : View(context) {
         clampPan(); invalidate()
     }
 
+    private var sprites = IntArray(0)          // [type, frame, left, top] * spriteCount
+    private var spriteCount = 0
+    private val spriteBitmaps = HashMap<String, Bitmap?>()   // asset name -> bitmap (null = missing)
+
     /** Current view as [panX, panY, scale]. */
     fun saveView(): FloatArray = floatArrayOf(panX, panY, scale)
 
@@ -117,6 +121,19 @@ class MapView(context: Context) : View(context) {
     fun update(newTiles: ShortArray) {
         tiles = newTiles
         postInvalidate()
+    }
+
+    /** New sprite list from the sim (see MicropolisNative.copySprites). */
+    fun updateSprites(data: IntArray, count: Int) {
+        sprites = data; spriteCount = count
+        invalidate()
+    }
+
+    private fun spriteBitmap(type: Int, frame: Int): Bitmap? {
+        val name = "sprites/sprite_${type}_${frame - 1}.png"
+        return spriteBitmaps.getOrPut(name) {
+            try { context.assets.open(name).use { BitmapFactory.decodeStream(it) } } catch (e: Exception) { null }
+        }
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -314,6 +331,16 @@ class MapView(context: Context) : View(context) {
         }
         
         canvas.restore()
+        
+        // Draw sprites
+        val px = tileSize / 16f                       // screen units per world pixel
+        for (i in 0 until spriteCount) {
+            val bmp = spriteBitmap(sprites[i * 4], sprites[i * 4 + 1]) ?: continue
+            val left = sprites[i * 4 + 2] * px
+            val top = sprites[i * 4 + 3] * px
+            dstRect.set(left, top, left + bmp.width * px, top + bmp.height * px)
+            canvas.drawBitmap(bmp, null, dstRect, paint)
+        }
         
         // Draw ghost for place-on-lift tools
         if (toolFootprint > 1 && ghostX >= 0) {
