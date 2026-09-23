@@ -52,13 +52,17 @@ User decisions (2026-09-23): a separate **background pace** setting; every event
 group (Disasters, New year, City problems, Milestones) is its own setting (notify /
 pause); "run in background" is a setting too.
 - [x] 054 — Deterministic replay: RNG capture, seeded load, `test/determinism.c` (Opus)
-- [ ] 055 — Settings: "Background & notifications" section (run in background, pace,
+- [x] 055 — Settings: "Background & notifications" section (run in background, pace,
       per-group notify / pause). Prefs only, no behaviour yet. (qwen)
-- [ ] 056 — Notifier: channels per group, POST_NOTIFICATIONS request, post with a
+- [x] 056 — Notifier: channels per group, POST_NOTIFICATIONS request, post with a
       deep link (tile x/y); tap opens the app and centres the map. (qwen, Opus reviews)
-- [ ] 057 — Background engine: sidecar (anchor, rng, pace), probe on background,
+- [x] 057 — Background engine: sidecar (anchor, rng, pace), probe on background,
       exact alarm, alarm receiver replays + notifies, catch-up on foreground,
       boot re-arm, WorkManager safety net. (Opus designs the threading/contract;
       qwen parts)
-- [ ] 058 — Deterministic app-side disaster roll (seeded from snapshot + month) so
+- [x] 058 — Deterministic app-side disaster roll (folded into 057: DisasterRoll) (seeded from snapshot + month) so
       background and foreground agree. (qwen)
+- [x] 059 — Draw sprites (monster, tornado, trains, planes, ships…) + engine fix for
+      sprite creation (unconstructed `SimSprite::name`).
+- [ ] Next: use the seeded DisasterRoll in the live tick loop too; zoom in on the event
+      when opening from a notification; WorkManager safety net (12.11); test on the phone.
