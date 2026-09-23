@@ -261,7 +261,7 @@ internal fun MainActivity.buildToolCard(ti: ToolItem, sheet: com.google.android.
     })
     val cost = costOf(ti.value)
     card.addView(android.widget.TextView(this).apply {
-        text = if (cost == 0) "Free" else "$$cost"
+        text = if (ti.value == MOVE_TOOL) "Pan map" else if (cost == 0) "Free" else "$$cost"
         setTextColor(0xFFF5A623.toInt())
         textSize = 10f
         gravity = android.view.Gravity.CENTER
@@ -273,7 +273,8 @@ internal fun MainActivity.buildToolCard(ti: ToolItem, sheet: com.google.android.
     lp.columnSpec = android.widget.GridLayout.spec(android.widget.GridLayout.UNDEFINED, 1f)
     lp.setMargins(6, 6, 6, 6)
     card.layoutParams = lp
-    card.setOnClickListener { currentTool = ti.value; updatePill(); sheet.dismiss() }
+    // Tapping the tool that is already selected turns it off (back to Move).
+    card.setOnClickListener { selectTool(if (selected) MOVE_TOOL else ti.value); sheet.dismiss() }
     return card
 }
 

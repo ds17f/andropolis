@@ -24,7 +24,19 @@ import androidx.appcompat.app.AppCompatActivity
 class MainActivity : AppCompatActivity() {
 
     internal var handle: Long = 0L
-    internal var currentTool = 11
+    internal var currentTool = MOVE_TOOL      // start with no tool: one finger moves the map
+    internal var lastToolUseMs = 0L           // for the idle fallback to Move (ui thread)
+    internal var idleToMove = true            // Settings: drop the tool after IDLE_TO_MOVE_MS
+    internal val moveItem by lazy { ToolItem("Move", MOVE_TOOL, R.drawable.ic_move) }
+    internal lateinit var pillClose: android.widget.TextView
+    /** Once a second: drop an unused tool back to Move (Settings: idleToMove). */
+    internal val idleCheck: Runnable = object : Runnable {
+        override fun run() {
+            if (idleToMove && currentTool != MOVE_TOOL &&
+                android.os.SystemClock.uptimeMillis() - lastToolUseMs > IDLE_TO_MOVE_MS) selectTool(MOVE_TOOL)
+            ui.postDelayed(this, 1000)
+        }
+    }
     internal lateinit var mapView: MapView
     internal lateinit var buf: ShortArray
     internal lateinit var sim: Handler
@@ -236,7 +248,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
         // One BuildEdit per build stroke drives Undo/Redo.
-        mapView.onStrokeEnd = { built -> if (built) commitBuild() }
+        mapView.onStrokeEnd = { built -> lastToolUseMs = android.os.SystemClock.uptimeMillis(); if (built) commitBuild() }
         // Wire minimap
         minimap.onTileSelected = { tx, ty ->
             mapView.centerOnTile(tx, ty)
@@ -244,6 +256,8 @@ class MainActivity : AppCompatActivity() {
         }
         mapView.onViewportChanged = { l, t, r, b -> minimap.setViewport(l, t, r, b) }
         mapView.onUserNavigate = { viewBeforeJump = null }
+        idleToMove = prefs.getBoolean("idleToMove", true)
+        ui.postDelayed(idleCheck, 1000)
         minimapNav = prefs.getBoolean("minimapNav", false)
         autoGoto = prefs.getBoolean("autoGoto", true)
         applyMinimapMode()
@@ -339,3 +353,8 @@ internal class LogEntry(val date: String, val text: String, val x: Int, val y: I
 data class ToolItem(val label: String, val value: Int, val icon: Int)
 class PanelTab(val title: String, val glyph: String = "", val build: () -> View)
 internal class CardHandle(val view: LinearLayout, val setSelected: (Boolean) -> Unit)
+
+/** "No tool": one finger moves the map. */
+const val MOVE_TOOL = -1
+/** With a tool selected and the map untouched this long, fall back to Move. */
+const val IDLE_TO_MOVE_MS = 15_000L

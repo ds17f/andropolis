@@ -169,7 +169,19 @@ internal fun MainActivity.buildLayout() {
     }
     pillInfo.addView(pillName)
 
+    pillInfo.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
     toolPill.addView(pillInfo)
+
+    // ✕ drops the current tool (back to Move); hidden while in Move.
+    pillClose = TextView(this).apply {
+        text = "✕"; textSize = 18f; setTextColor(0xFF9AA7B4.toInt())
+        gravity = android.view.Gravity.CENTER
+        setPadding(dp(12), dp(8), dp(4), dp(8))
+        contentDescription = "Drop tool"
+        setOnClickListener { selectTool(MOVE_TOOL) }
+    }
+    toolPill.gravity = android.view.Gravity.CENTER_VERTICAL
+    toolPill.addView(pillClose)
 
     bottom.addView(toolPill)
 

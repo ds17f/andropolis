@@ -85,12 +85,22 @@ internal fun MainActivity.pauseForUi(): () -> Unit {
 }
 
 internal fun MainActivity.updatePill() {
-    val ti = allTools.first { it.value == currentTool }
+    val move = currentTool == MOVE_TOOL
+    val ti = if (move) moveItem else allTools.first { it.value == currentTool }
     pillIcon.setImageResource(ti.icon)
     pillName.text = ti.label
-    mapView.toolFootprint = footprintOf(currentTool)
-    mapView.straightLineTool = isStraightLineTool(currentTool)
+    pillClose.visibility = if (move) View.GONE else View.VISIBLE
+    mapView.moveMode = move
+    mapView.toolFootprint = if (move) 1 else footprintOf(currentTool)
+    mapView.straightLineTool = !move && isStraightLineTool(currentTool)
     mapView.tapOnlyTool = currentTool == 5   // Query: tap to inspect, never on drag/pinch
+}
+
+/** Pick a tool (or MOVE_TOOL) and restart the idle timer. */
+internal fun MainActivity.selectTool(tool: Int) {
+    currentTool = tool
+    lastToolUseMs = android.os.SystemClock.uptimeMillis()
+    updatePill()
 }
 
 internal fun MainActivity.autoJumpTo(x: Int, y: Int) {
@@ -117,6 +127,9 @@ internal fun MainActivity.openPalette() {
         setPadding(20, 12, 20, 28)
         setBackgroundColor(0xFF12161C.toInt())
     }
+    val moveGrid = android.widget.GridLayout(this).apply { columnCount = 4 }
+    moveGrid.addView(buildToolCard(moveItem, sheet))
+    col.addView(moveGrid)
     for ((cat, items) in toolCategories) {
         col.addView(android.widget.TextView(this).apply {
             text = cat.uppercase()
@@ -282,7 +295,11 @@ internal fun MainActivity.showSettingsPanel(onDismiss: (() -> Unit)? = null) {
                     "Pause at each new year and show the city's report card.", annualReportEnabled) { c ->
                     annualReportEnabled = c; prefs.edit().putBoolean("annualReport", c).apply()
                 })
-                addView(settingsToggle("Auto go to events",
+                addView(settingsToggle("Drop tool when idle",
+                "After 15 s without touching the map, go back to Move.", idleToMove) { c ->
+                idleToMove = c; prefs.edit().putBoolean("idleToMove", c).apply()
+            })
+            addView(settingsToggle("Auto go to events",
                     "Jump the map to fires, disasters and other alerts as they happen.", autoGoto) { c ->
                     autoGoto = c; prefs.edit().putBoolean("autoGoto", c).apply()
                 })

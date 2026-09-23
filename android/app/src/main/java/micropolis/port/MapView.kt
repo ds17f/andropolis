@@ -101,6 +101,8 @@ class MapView(context: Context) : View(context) {
     private val strokeBuilt = HashSet<Long>()
     var straightLineTool = false           // set by MainActivity for road/rail/wire
     var tapOnlyTool = false                 // e.g. Query: act on a clean tap, never on drag/pinch
+    var moveMode = false                    // no tool: one finger pans, nothing is built
+    private var refocus = false             // a finger went up mid-pan: re-read the focus, don't jump
     private var navLocked = false          // minimap-navigation mode: fixed zoom, no pinch/pan
 
     private val scaleDetector = ScaleGestureDetector(context, ScaleListener())
@@ -145,7 +147,11 @@ class MapView(context: Context) : View(context) {
                 lastBuiltTile = null
                 strokeBuilt.clear()
                 axisLock = 0
-                if (toolFootprint > 1) {
+                if (moveMode) {
+                    pendingDown = false
+                    lastFocusX = event.x
+                    lastFocusY = event.y
+                } else if (toolFootprint > 1) {
                     ghostX = tileXat(event.x)
                     ghostY = tileYat(event.y)
                     pendingDown = false
@@ -174,8 +180,17 @@ class MapView(context: Context) : View(context) {
                 lastFocusY = focusY(event)
                 if (!navLocked) onUserNavigate?.invoke()
             }
+            MotionEvent.ACTION_POINTER_UP -> refocus = true
             MotionEvent.ACTION_MOVE -> {
-                if (event.pointerCount >= 2 && !navLocked) {
+                if (refocus) {
+                    lastFocusX = focusX(event); lastFocusY = focusY(event); refocus = false
+                } else if ((event.pointerCount >= 2 || moveMode) && !navLocked) {
+                    if (moveMode && event.pointerCount == 1 && !panning) {
+                        // one-finger pan starts after a small slop, so a tap stays a tap
+                        if (kotlin.math.hypot(event.x - lastFocusX, event.y - lastFocusY) < 12f) return true
+                        panning = true
+                        onUserNavigate?.invoke()
+                    }
                     val fx = focusX(event)
                     val fy = focusY(event)
                     panX += fx - lastFocusX
@@ -221,6 +236,7 @@ class MapView(context: Context) : View(context) {
                 ghostX = -1
                 ghostY = -1
                 panning = false
+                refocus = false
                 pendingDown = false
                 axisLock = 0
                 lastBuiltTile = null
