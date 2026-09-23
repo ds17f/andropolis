@@ -43,6 +43,7 @@ class MapView(context: Context) : View(context) {
     private var panX = 0f
     private var panY = 0f
     private var tileSize = 0f
+    private var fillOnLayout = false
     private var panning = false
     private var lastFocusX = 0f
     private var lastFocusY = 0f
@@ -74,6 +75,22 @@ class MapView(context: Context) : View(context) {
         panX = width / 2f - (tx + 0.5f) * tileSize * scale
         panY = height / 2f - (ty + 0.5f) * tileSize * scale
         clampPan(); invalidate()
+    }
+
+    /** Zoom so the map fills the whole view (no bands), centred. Safe to call before layout. */
+    fun zoomToFill() {
+        if (width == 0 || height == 0) { fillOnLayout = true; return }
+        tileSize = width.toFloat() / cols
+        if (!navLocked) scale = maxOf(1f, height / (tileSize * rows)).coerceIn(1f, 8f)
+        panX = (width - tileSize * cols * scale) / 2f
+        panY = (height - tileSize * rows * scale) / 2f
+        clampPan(); invalidate()
+    }
+
+    /** Centre on a tile, zooming in to at least `minScale` (unless navigation is locked). */
+    fun zoomToTile(tx: Int, ty: Int, minScale: Float = 3f) {
+        if (!navLocked && scale < minScale) scale = minScale.coerceIn(1f, 8f)
+        centerOnTile(tx, ty)
     }
 
     private var sprites = IntArray(0)          // [type, frame, left, top] * spriteCount
@@ -116,6 +133,7 @@ class MapView(context: Context) : View(context) {
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         tileSize = w.toFloat() / cols
+        if (fillOnLayout) { fillOnLayout = false; zoomToFill() }
         clampPan()
         invalidate()
     }
