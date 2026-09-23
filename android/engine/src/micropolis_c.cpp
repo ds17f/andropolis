@@ -44,6 +44,8 @@ static_assert(MICROPOLIS_TOOL_OK == TOOLRESULT_OK, "ToolResult enum mismatch");
 bool micropolisSeededLoad(Micropolis *sim, const std::string &path, UQuad rng);
 void micropolisPrimeSpritePool(Micropolis *sim);
 void micropolisFreeSpritePool(Micropolis *sim);
+bool micropolisLoadScenario(Micropolis *sim, int s, const std::string &path);
+void micropolisSimTick(Micropolis *sim);
 
 struct MicropolisEngine {
     Micropolis *sim;
@@ -120,8 +122,20 @@ int micropolis_save_city(MicropolisEngine *e, const char *path) {
 
 void micropolis_sim_tick(MicropolisEngine *e) {
     if (e) {
-        e->sim->simTick();
+        micropolisSimTick(e->sim);   // simTick() that keeps the monster alive (micropolis_seeded.cpp)
     }
+}
+
+void micropolis_set_terrain(MicropolisEngine *e, int trees, int lakes, int river, int island) {
+    if (!e) return;
+    e->sim->terrainTreeLevel = trees;
+    e->sim->terrainLakeLevel = lakes;
+    e->sim->terrainCurveLevel = river;
+    e->sim->terrainCreateIsland = island;
+}
+
+int micropolis_load_scenario(MicropolisEngine *e, int scenario, const char *path) {
+    return (e && path && micropolisLoadScenario(e->sim, scenario, std::string(path))) ? 1 : 0;
 }
 
 void micropolis_sim_update(MicropolisEngine *e) {
@@ -311,15 +325,7 @@ void micropolis_make_disaster(MicropolisEngine *e, int disaster) {
         case MICROPOLIS_DISASTER_FLOOD:      e->sim->makeFlood(); break;
         case MICROPOLIS_DISASTER_TORNADO:    e->sim->makeTornado(); break;
         case MICROPOLIS_DISASTER_EARTHQUAKE: e->sim->makeEarthquake(); break;
-        case MICROPOLIS_DISASTER_MONSTER:
-            e->sim->makeMonster();
-            // Upstream kills the monster when it stands on RIVER while count != 0, but
-            // makeMonster() spawns it in the river with count = 1000, so on wide rivers
-            // it died within a few ticks of "monster sighted". count = 0 removes only
-            // that rule: it still walks to the pollution peak and back, then leaves.
-            for (SimSprite *s = e->sim->spriteList; s; s = s->next)
-                if (s->type == SPRITE_MONSTER) s->count = 0;
-            break;
+        case MICROPOLIS_DISASTER_MONSTER:    e->sim->makeMonster(); break;
         case MICROPOLIS_DISASTER_MELTDOWN:   e->sim->makeMeltdown(); break;
         default:                             break;
     }

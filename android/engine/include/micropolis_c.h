@@ -296,6 +296,20 @@ void      micropolis_set_rng(MicropolisEngine *e, long long state);
  */
 int micropolis_load_city_seeded(MicropolisEngine *e, const char *path, long long rng);
 
+/*
+ * Start one of the original scenarios from its .cty file at `path`:
+ * 1 Dullsville, 2 San Francisco, 3 Hamburg, 4 Bern, 5 Tokyo, 6 Detroit, 7 Boston, 8 Rio.
+ * Sets the start year, funds and scenario rules (disaster, win/lose check). Returns 1 on success.
+ */
+int micropolis_load_scenario(MicropolisEngine *e, int scenario, const char *path);
+
+/*
+ * Terrain for the next generated city (micropolis_generate_random_city). -1 = random.
+ * trees: 0 none, else amount; lakes: 0 none, else ~lakes*2; river: 0 none, else curviness;
+ * island: 0 never, 1 always, -1 sometimes (10%).
+ */
+void micropolis_set_terrain(MicropolisEngine *e, int trees, int lakes, int river, int island);
+
 #ifdef __cplusplus
 }
 #endif

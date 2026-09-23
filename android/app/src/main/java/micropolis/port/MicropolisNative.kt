@@ -81,6 +81,16 @@ object MicropolisNative {
      */
     external fun copySprites(handle: Long, dst: IntArray): Int
 
+    /**
+     * Start an original scenario from its .cty file at `path` (a real file; copy the asset
+     * first): 1 Dullsville, 2 San Francisco, 3 Hamburg, 4 Bern, 5 Tokyo, 6 Detroit,
+     * 7 Boston, 8 Rio. Returns 1 on success.
+     */
+    external fun loadScenario(handle: Long, scenario: Int, path: String): Int
+
+    /** Terrain for the next generateRandomCity. -1 = random. See micropolis_c.h. */
+    external fun setTerrain(handle: Long, trees: Int, lakes: Int, river: Int, island: Int)
+
     /** The engine's PRNG state (saved with a background-play anchor; see DESIGN.md 12.5). */
     external fun getRng(handle: Long): Long
 

@@ -167,7 +167,7 @@ internal fun MainActivity.showOverflowMenu(anchor: View) {
     val resume = pauseForUi()
     val pm = PopupMenu(this@showOverflowMenu, anchor)
     pm.menu.add("Redo").isEnabled = redoStack.isNotEmpty()
-    pm.menu.add("New city")
+    pm.menu.add("New game")
     pm.menu.add("Save city")
     pm.menu.add("Load city")
     pm.menu.add("Messages")
@@ -180,19 +180,7 @@ internal fun MainActivity.showOverflowMenu(anchor: View) {
             "Messages" -> { handedOff = true; showMessagesPanel(resume) }
             "Settings" -> { handedOff = true; showSettingsPanel(resume) }
             "How to play" -> { handedOff = true; showHelp(resume) }
-            "New city" -> {
-                cityReady = false
-                sim.post {
-                    MicropolisNative.generateRandomCity(handle)
-                    MicropolisNative.saveCity(handle, autosavePath)   // reset autosave to the new city
-                    cityReady = true
-                    ui.post {
-                        resetHistory()                 // undo does not cross cities
-                        promptCityName(isFirst = true, onDismiss = resume)
-                    }
-                }
-                handedOff = true
-            }
+            "New game" -> { handedOff = true; showNewGame(resume) }
             "Save city" -> { handedOff = true; pickerResume = resume; savePicker.launch("${sanitize(cityName)}.cty") }
             "Load city" -> { handedOff = true; pickerResume = resume; loadPicker.launch(arrayOf("*/*")) }
         }

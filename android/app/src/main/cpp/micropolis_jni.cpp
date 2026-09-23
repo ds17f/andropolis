@@ -181,6 +181,19 @@ Java_micropolis_port_MicropolisNative_copySprites(JNIEnv *env, jobject, jlong h,
     return n;
 }
 
+JNIEXPORT jint JNICALL
+Java_micropolis_port_MicropolisNative_loadScenario(JNIEnv *env, jobject, jlong h, jint scenario, jstring path) {
+    const char *p = env->GetStringUTFChars(path, nullptr);
+    int ok = micropolis_load_scenario(eng(h), scenario, p);
+    env->ReleaseStringUTFChars(path, p);
+    return ok;
+}
+
+JNIEXPORT void JNICALL
+Java_micropolis_port_MicropolisNative_setTerrain(JNIEnv *, jobject, jlong h, jint trees, jint lakes, jint river, jint island) {
+    micropolis_set_terrain(eng(h), trees, lakes, river, island);
+}
+
 JNIEXPORT jlong JNICALL
 Java_micropolis_port_MicropolisNative_getRng(JNIEnv *, jobject, jlong h) {
     return (jlong) micropolis_get_rng(eng(h));

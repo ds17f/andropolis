@@ -1,7 +1,9 @@
 /*
  * micropolis_seeded.cpp — engine internals we must reach without editing upstream:
  *   1. a load whose post-load simulation init is deterministic;
- *   2. a sprite pool of properly constructed SimSprite objects (see below).
+ *   2. a sprite pool of properly constructed SimSprite objects (see below);
+ *   3. loading a scenario from a path we choose (see below);
+ *   4. a tick that keeps the monster alive (see below).
  *
  * 1. Seeded load.
  * Micropolis::loadFile() calls initWillStuff(), which seeds the PRNG from the
@@ -82,4 +84,72 @@ void micropolisFreeSpritePool(Micropolis *sim) {
     sim->spriteList = nullptr;
     sim->freeSprites = nullptr;
     for (int i = 0; i < SPRITE_COUNT; i++) sim->globalSprites[i] = nullptr;
+}
+
+/*
+ * 3. Scenarios. Upstream loadScenario() opens "cities/scenario_*.cty" relative to the
+ * process working directory (not usable on Android) and starts with
+ * `std::string name = NULL;` (undefined behaviour). This is the same procedure with the
+ * file path passed in. Table copied from upstream fileio.cpp.
+ */
+bool micropolisLoadScenario(Micropolis *sim, int s, const std::string &path) {
+    struct Sc { const char *name; int year; int funds; };
+    static const Sc table[] = {
+        { "",               0,    0     },  // SC_NONE
+        { "Dullsville",     1900, 5000  },
+        { "San Francisco",  1906, 20000 },
+        { "Hamburg",        1944, 20000 },
+        { "Bern",           1965, 20000 },
+        { "Tokyo",          1957, 20000 },
+        { "Detroit",        1972, 20000 },
+        { "Boston",         2010, 20000 },
+        { "Rio de Janeiro", 2047, 20000 },
+    };
+    if (s < SC_DULLSVILLE || s > SC_RIO) return false;
+    sim->cityFileName = "";
+    sim->setGameLevel(LEVEL_EASY);
+    sim->scenario = (Scenario) s;
+    sim->cityTime = ((table[s].year - 1900) * 48) + 2;
+    sim->setFunds(table[s].funds);
+    sim->setCleanCityName(table[s].name);
+    sim->setSpeed(3);
+    sim->setCityTax(7);
+    if (!sim->loadFileData(path)) return false;
+    sim->initWillStuff();
+    sim->initFundingLevel();
+    sim->updateFunds();
+    sim->invalidateMaps();
+    sim->initSimLoad = 1;
+    sim->doInitialEval = false;
+    sim->doSimInit();
+    sim->didLoadScenario(s, table[s].name, path);
+    return true;
+}
+
+/*
+ * 4. Tick. Upstream kills the monster when it stands on RIVER while count != 0, yet
+ * makeMonster() spawns it in the river with count = 1000, so it died in the same tick
+ * it was born (simFrame spawns it, moveObjects kills it). This is Micropolis::simTick()
+ * with simLoop(true) written out, clearing the monster's count between simFrame() and
+ * moveObjects(). count = 0 removes only the river rule: the monster still walks to the
+ * pollution peak and back, then leaves. Same work in the same order otherwise, so
+ * replays stay deterministic.
+ */
+static void keepMonsterAlive(Micropolis *sim) {
+    for (SimSprite *s = sim->spriteList; s; s = s->next)
+        if (s->type == SPRITE_MONSTER) s->count = 0;
+}
+
+void micropolisSimTick(Micropolis *sim) {
+    if (sim->simSpeed) {
+        for (sim->simPass = 0; sim->simPass < sim->simPasses; sim->simPass++) {
+            if (sim->heatSteps) { sim->simLoop(true); continue; }   // cellular-automaton mode: unchanged
+            sim->simFrame();
+            keepMonsterAlive(sim);
+            sim->moveObjects();
+            sim->simulateRobots();
+            sim->simLoops++;
+        }
+    }
+    sim->simUpdate();
 }
