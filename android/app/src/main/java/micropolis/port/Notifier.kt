@@ -19,8 +19,9 @@ object Notifier {
     fun ensureChannels(ctx: Context) {
         if (Build.VERSION.SDK_INT < 26) return
         val nm = ctx.getSystemService(NotificationManager::class.java)
+        nm.deleteNotificationChannel("bg_problems")   // replaced by pollution / traffic / power / money (task 061)
         for (g in BackgroundPrefs.GROUPS) {
-            val importance = if (g.id == "disasters") NotificationManager.IMPORTANCE_HIGH
+            val importance = if (g.id == "disasters" || g.id == "accidents") NotificationManager.IMPORTANCE_HIGH
                              else NotificationManager.IMPORTANCE_DEFAULT
             nm.createNotificationChannel(NotificationChannel(channelId(g), g.title, importance).apply {
                 description = g.desc
@@ -55,8 +56,12 @@ object Notifier {
     /** Which group an engine message (index into messageText, 1..57) belongs to, or null. */
     fun groupForMessage(msg: Int): BackgroundPrefs.Group? {
         val id = when (msg) {
-            in 20..27, 30, 32, 42, 43, 44 -> "disasters"
-            10, 11, 12, 15, 16, 28, 29, 40, 41 -> "problems"
+            20, 21, 22, 23, 42 -> "disasters"
+            24, 25, 26, 27, 30, 32, 43, 44 -> "accidents"
+            10, 11 -> "pollution"
+            12, 41 -> "traffic"
+            15, 40 -> "power"
+            16, 28, 29 -> "money"
             in 35..39 -> "milestones"
             else -> null
         }
