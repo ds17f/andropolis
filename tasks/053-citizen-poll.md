@@ -58,5 +58,8 @@ share of citizens naming each. Show it on City → Overview and the top two on t
   developed city; the Annual Report shows the top two.
 
 ## Constraints
+- **Copy the code blocks above exactly.** Everything you need is in this spec; do not read
+  engine sources (`MicropolisCore/`) or git history to re-derive it. Only ADD code — do not
+  delete or restructure existing code.
 - Do not change the C-ABI header (done), engine sources, CMake, or `build.gradle.kts`.
 - Commit when green; stage only your files by name. Do not use `git checkout`, `git reset`, or `git add -A`.
