@@ -410,8 +410,6 @@ class MainActivity : AppCompatActivity() {
 
         root.addView(bottom)
 
-        root.addView(bottom)
-
         setContentView(root)
 
         updatePill()
