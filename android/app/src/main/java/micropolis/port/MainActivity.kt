@@ -7,6 +7,7 @@ import android.os.HandlerThread
 import android.os.Looper
 import android.view.View
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.LinearLayout.LayoutParams
@@ -215,6 +216,58 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
+    /** A reusable styled dialog: dark rounded panel with bold title, row labels/values, amber button. */
+    private fun styledDialog(
+        title: String,
+        rows: List<Pair<String, String>>,
+        actionLabel: String = "OK",
+        onAction: (() -> Unit)? = null,
+        subtitle: String? = null
+    ) {
+        val col = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), dp(22), dp(24), dp(18))
+            background = roundedBg(0xFF161B22.toInt(), 20)
+        }
+        col.addView(TextView(this).apply {
+            text = title; setTextColor(0xFFEEF2F6.toInt()); textSize = 20f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+        })
+        if (subtitle != null) col.addView(TextView(this).apply {
+            text = subtitle; setTextColor(0xFF9AA7B4.toInt()); textSize = 13f; setPadding(0, dp(2), 0, 0)
+        })
+        col.addView(View(this).apply {
+            setBackgroundColor(0x1FFFFFFF); layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply { topMargin = dp(12); bottomMargin = dp(6) }
+        })
+        for ((k, v) in rows) {
+            col.addView(LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(7), 0, dp(7))
+                addView(TextView(this@MainActivity).apply {
+                    text = k; setTextColor(0xFF9AA7B4.toInt()); textSize = 14f
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                })
+                addView(TextView(this@MainActivity).apply {
+                    text = v; setTextColor(0xFFEEF2F6.toInt()); textSize = 14f
+                    setTypeface(null, android.graphics.Typeface.BOLD)
+                })
+            })
+        }
+        val btn = Button(this).apply {
+            text = actionLabel; background = roundedBg(0xFFF5A623.toInt(), 12)
+            setTextColor(0xFF1A1207.toInt()); stateListAnimator = null
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(16) }
+        }
+        col.addView(btn)
+        val wrap = FrameLayout(this).apply { setPadding(dp(12), 0, dp(12), 0); addView(col) }
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this).setView(wrap).setCancelable(false).create()
+        // transparent window so only our rounded panel shows (no grey box)
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0))
+        btn.setOnClickListener { onAction?.invoke(); dialog.dismiss() }
+        dialog.show()
+    }
 
     /** A tool-style card: glyph in a tinted square + label; call setSelected to highlight. */
     private fun panelCard(glyph: String, label: String, onClick: () -> Unit): CardHandle {
@@ -751,17 +804,10 @@ class MainActivity : AppCompatActivity() {
     private fun levelName(i: Int) = arrayOf("None","Low","Medium","High","Very high").getOrElse(i) { "$i" }
 
     private fun showZoneStatusDialog(x: Int, y: Int, cat: Int, pop: Int, lv: Int, crime: Int, poll: Int, growth: Int) {
-        val msg = """
-            Tile category: $cat
-            Population density: ${levelName(pop)}
-            Land value: ${levelName(lv)}
-            Crime rate: ${levelName(crime)}
-            Pollution: ${levelName(poll)}
-            Growth rate: ${levelName(growth)}
-        """.trimIndent()
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("Zone at ($x, $y)").setMessage(msg)
-            .setPositiveButton("OK", null).show()
+        styledDialog("Zone at ($x, $y)", listOf(
+            "Tile category" to "$cat", "Population density" to levelName(pop),
+            "Land value" to levelName(lv), "Crime rate" to levelName(crime),
+            "Pollution" to levelName(poll), "Growth rate" to levelName(growth)))
     }
 
     /** Snapshot the current (post-build) state as the new head, dropping any redo branch. */
@@ -999,32 +1045,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showBudgetDialog(b: IntArray) {
-        val msg = """
-            Funds: $${b[0]}
-            Tax rate: ${b[1]}%     Tax income: $${b[2]}
-
-            Roads:  $${b[4]} / $${b[3]}   (${b[5]}%)
-            Police: $${b[7]} / $${b[6]}   (${b[8]}%)
-            Fire:   $${b[10]} / $${b[9]}   (${b[11]}%)
-        """.trimIndent()
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("City Budget").setMessage(msg)
-            .setPositiveButton("OK", null).show()
+        styledDialog("City Budget", listOf(
+            "Funds" to "$${b[0]}", "Tax rate" to "${b[1]}%", "Tax income" to "$${b[2]}",
+            "Roads" to "$${b[4]} / $${b[3]} (${b[5]}%)",
+            "Police" to "$${b[7]} / $${b[6]} (${b[8]}%)",
+            "Fire" to "$${b[10]} / $${b[9]} (${b[11]}%)"))
     }
 
     private fun showEvalDialog(ev: IntArray) {
-        val classes = arrayOf("Village","Town","City","Capital","Metropolis","Megalopolis")
-        val cls = classes.getOrElse(ev[2]) { "?" }
-        val msg = """
-            Score: ${ev[0]}  (Δ ${ev[1]})
-            Class: $cls
-            Population: ${ev[3]}  (Δ ${ev[4]})
-            Assessed value: $${ev[5]}
-            Approval: ${ev[6]}%
-        """.trimIndent()
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle("City Evaluation").setMessage(msg)
-            .setPositiveButton("OK", null).show()
+        styledDialog("City Evaluation", listOf(
+            "Score" to "${ev[0]} (Δ ${ev[1]})", "Class" to cityClassNames.getOrElse(ev[2]) { "?" },
+            "Population" to "${ev[3]} (Δ ${ev[4]})", "Assessed value" to "$${ev[5]}",
+            "Approval" to "${ev[6]}%"))
     }
 
     private fun showReportCard(year: Int, resume: Boolean) {
@@ -1032,26 +1064,12 @@ class MainActivity : AppCompatActivity() {
             val ev = IntArray(7); MicropolisNative.getEvaluation(handle, ev)
             val b = IntArray(12); MicropolisNative.getBudget(handle, b)
             ui.post {
-                val cls = cityClassNames.getOrElse(ev[2]) { "?" }
-                val msg = """
-                    Class: $cls
-                    Population: ${ev[3]}  (Δ ${ev[4]})
-                    Score: ${ev[0]}  (Δ ${ev[1]})
-                    Approval: ${ev[6]}%
-                    Funds: $${b[0]}    Tax: ${b[1]}%
-                """.trimIndent()
-                // Resume the sim at its previous speed once the player dismisses the card.
-                val onContinue = android.content.DialogInterface.OnClickListener { _, _ ->
-                    if (resume && speed == 0) {
-                        speed = lastRunSpeed; updatePlayPauseText(); updateSpeedChipText()
-                    }
-                }
-                androidx.appcompat.app.AlertDialog.Builder(this)
-                    .setTitle("Annual Report — $year")
-                    .setMessage(msg)
-                    .setPositiveButton("Continue", onContinue)
-                    .setCancelable(false)
-                    .show()
+                styledDialog("Annual Report", listOf(
+                    "Class" to cityClassNames.getOrElse(ev[2]) { "?" },
+                    "Population" to "${ev[3]} (Δ ${ev[4]})", "Score" to "${ev[0]} (Δ ${ev[1]})",
+                    "Approval" to "${ev[6]}%", "Funds" to "$${b[0]}", "Tax" to "${b[1]}%"),
+                    actionLabel = "Continue", subtitle = "Year $year",
+                    onAction = { if (resume && speed == 0) { speed = lastRunSpeed; updatePlayPauseText(); updateSpeedChipText() } })
             }
         }
     }
