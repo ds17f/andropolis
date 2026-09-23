@@ -11,6 +11,7 @@ import android.widget.TextView
 
 /** Full-screen help: tips.html first, then the bundled manual. onClose runs when it closes. */
 internal fun MainActivity.showHelp(onClose: () -> Unit) {
+    var helpWeb: WebView? = null
     val dialog = Dialog(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen).apply {
         setContentView(
             LinearLayout(this@showHelp).apply {
@@ -61,6 +62,10 @@ internal fun MainActivity.showHelp(onClose: () -> Unit) {
                     settings.javaScriptEnabled = false
                     loadUrl("file:///android_asset/manual/tips.html")
                     webViewClient = object : WebViewClient() {
+                        // The manual pages set no background: show them black-on-white. tips.html is dark.
+                        override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
+                            view.setBackgroundColor(if (url.endsWith("tips.html")) 0xFF12161C.toInt() else 0xFFFFFFFF.toInt())
+                        }
                         @Suppress("DEPRECATION")
                         override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
                             if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("mailto:")) {
@@ -73,22 +78,19 @@ internal fun MainActivity.showHelp(onClose: () -> Unit) {
                     }
                 }
                 addView(webView)
-
-                // Back key handling
-                setOnKeyListener { _, keyCode, event ->
-                    if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
-                        if (webView.canGoBack()) {
-                            webView.goBack()
-                        } else {
-                            dismiss()
-                        }
-                        true
-                    } else {
-                        false
-                    }
-                }
+                helpWeb = webView
             }
         )
+        // Back key: previous page, else close (on the dialog: a layout never gets the key)
+        setOnKeyListener { _, keyCode, event ->
+                    if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) {
+                        val w = helpWeb
+                        if (w != null && w.canGoBack()) w.goBack() else dismiss()
+                        true
+                    } else {
+                        keyCode == KeyEvent.KEYCODE_BACK      // swallow the DOWN too
+                    }
+                }
         setOnDismissListener { onClose() }
     }
     dialog.show()
