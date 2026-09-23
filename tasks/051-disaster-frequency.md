@@ -31,8 +31,10 @@ OFF and roll them ourselves once per game month.
   private var lastDisasterMonth = -1
   ```
   Load `disasterFreq = prefs.getInt("disasterFreq", 2)` in `onCreate`.
-- After the engine is created/loaded (sim thread setup, and after every loadCity/generate),
-  call `MicropolisNative.setEnableDisasters(handle, 0)` so only our roll happens.
+- In `tickLoop()`, right next to the existing per-frame `MicropolisNative.setSpeed(...)` line, add
+  `if (handle != 0L) MicropolisNative.setEnableDisasters(handle, 0)` so only our roll happens
+  (every frame, like setSpeed, so loads/new cities can never turn engine disasters back on).
+  Do NOT hunt for load/generate call sites.
 - In `tickLoop()` (sim thread), once per new game month:
   ```kotlin
   val monthKey = year * 12 + month
@@ -64,5 +66,7 @@ OFF and roll them ourselves once per game month.
   a disaster within a game year or two; "Off" produces none.
 
 ## Constraints
+- **Copy the code blocks above exactly.** Everything you need is in this spec; do not read
+  engine sources (`MicropolisCore/`) or git history to re-derive it.
 - Do not change the C-ABI header (already done), engine sources, CMake, or `build.gradle.kts`.
 - Commit when green; stage only your files by name. Do not use `git checkout`, `git reset`, or `git add -A`.
