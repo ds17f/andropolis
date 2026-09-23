@@ -47,6 +47,7 @@ internal fun MainActivity.msgIcon(i: Int): String = when (i) {
 }
 
 internal fun MainActivity.tickLoop() {
+    if (simSuspended) { sim.postDelayed({ tickLoop() }, 250); return }   // background play owns the city
     if (cityReady && handle != 0L) {
         val now = android.os.SystemClock.uptimeMillis()
         if (now - lastAutosaveMs > 30_000L) {

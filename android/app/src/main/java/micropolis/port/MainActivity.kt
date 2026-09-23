@@ -141,6 +141,7 @@ class MainActivity : AppCompatActivity() {
     internal val histNames = arrayOf("Residential", "Commercial", "Industrial", "Money", "Crime", "Pollution")
     internal lateinit var topBar: LinearLayout
     internal lateinit var toolbar: com.google.android.material.appbar.MaterialToolbar
+    @Volatile internal var simSuspended = false   // true while background play owns the city
     internal var dateText = ""                 // "Nov 2186", shown in the toolbar subtitle
     internal lateinit var fundsValue: android.widget.TextView
     internal lateinit var popValue: android.widget.TextView
@@ -294,6 +295,16 @@ class MainActivity : AppCompatActivity() {
             // leaving the app: also keep a timestamped autosave (at most one a minute)
             if (android.os.SystemClock.uptimeMillis() - lastPublicAutosaveMs > 60_000L) publicAutosave()
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        startBackgroundPlay()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        resumeFromBackgroundPlay()
     }
 
     override fun onNewIntent(intent: android.content.Intent) {
