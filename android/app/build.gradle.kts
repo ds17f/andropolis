@@ -15,8 +15,8 @@ android {
         minSdk = 24
         targetSdk = 36
         // Bumped by scripts/release.sh; F-Droid reads these literals at each tag.
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.1.1"
 
         // Build for the emulator (x86_64) and real 64-bit devices (arm64).
         ndk { abiFilters += listOf("x86_64", "arm64-v8a") }
