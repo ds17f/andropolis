@@ -155,13 +155,15 @@ internal fun MainActivity.updatePlayPauseText() {
     item.setIcon(if (speed == 0) R.drawable.ic_play else R.drawable.ic_pause)
     item.title = if (speed == 0) "Resume" else "Pause"
     item.icon?.mutate()?.setTint(if (speed == 0) 0xFFF5A623.toInt() else 0xFFEEF2F6.toInt())
+    topBar.setBackgroundColor(if (speed == 0) 0xFF4A3510.toInt() else 0xFF12161C.toInt())
+    toolbar.setSubtitleTextColor(if (speed == 0) 0xFFF5A623.toInt() else 0xFF9AA7B4.toInt())
     updateSubtitle()
 }
 
 internal fun MainActivity.updateSpeedChipText() { simState.text = speedNames[speed]; updateSubtitle() }
 
 internal fun MainActivity.updateSubtitle() {
-    toolbar.subtitle = if (speed == 0) "$dateText · Paused" else "$dateText · ${speedNames[speed]}"
+    toolbar.subtitle = if (speed == 0) "⏸  PAUSED · $dateText" else "$dateText · ${speedNames[speed]}"
 }
 
 /** The ⋮ menu. Opening it pauses the sim; it resumes on dismiss unless a dialog takes over. */

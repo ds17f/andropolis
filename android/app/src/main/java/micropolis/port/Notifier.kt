@@ -16,6 +16,9 @@ object Notifier {
 
     private fun channelId(g: BackgroundPrefs.Group) = "bg_${g.id}"
 
+    private const val PAUSED_CHANNEL = "bg_paused"
+    private const val PAUSED_ID = 0x7a05ed
+
     fun ensureChannels(ctx: Context) {
         if (Build.VERSION.SDK_INT < 26) return
         val nm = ctx.getSystemService(NotificationManager::class.java)
@@ -27,6 +30,9 @@ object Notifier {
                 description = g.desc
             })
         }
+        nm.createNotificationChannel(NotificationChannel(PAUSED_CHANNEL, "Paused city", NotificationManager.IMPORTANCE_LOW).apply {
+            description = "Reminder that a paused city does not grow while the app is closed."
+        })
     }
 
     fun canPost(ctx: Context) = NotificationManagerCompat.from(ctx).areNotificationsEnabled()
@@ -51,6 +57,31 @@ object Notifier {
             .setCategory(NotificationCompat.CATEGORY_EVENT)
             .build()
         try { NotificationManagerCompat.from(ctx).notify(id, n) } catch (e: SecurityException) { }
+    }
+
+    /** Silent reminder: the city is paused, so it does not grow while the app is closed. */
+    fun postPaused(ctx: Context, cityName: String) {
+        ensureChannels(ctx)
+        if (!canPost(ctx)) return
+        val open = Intent(ctx, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pi = PendingIntent.getActivity(ctx, PAUSED_ID, open,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val n = NotificationCompat.Builder(ctx, PAUSED_CHANNEL)
+            .setSmallIcon(R.drawable.ic_stat_city)
+            .setContentTitle("$cityName is paused")
+            .setContentText("It will not grow while you are away. Tap to open it.")
+            .setContentIntent(pi)
+            .setAutoCancel(true)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .build()
+        try { NotificationManagerCompat.from(ctx).notify(PAUSED_ID, n) } catch (e: SecurityException) { }
+    }
+
+    /** Remove the paused reminder (the player is back). */
+    fun cancelPaused(ctx: Context) {
+        NotificationManagerCompat.from(ctx).cancel(PAUSED_ID)
     }
 
     /** Which group an engine message (index into messageText, 1..57) belongs to, or null. */

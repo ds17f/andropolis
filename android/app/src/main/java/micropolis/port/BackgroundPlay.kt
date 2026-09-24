@@ -6,7 +6,8 @@ package micropolis.port
  * Both run on the sim thread, so a quick close + open cannot race.
  */
 internal fun MainActivity.startBackgroundPlay() {
-    if (!BackgroundPrefs.enabled(prefs) || !cityReady || handle == 0L || speed == 0) return
+    if (!BackgroundPrefs.enabled(prefs) || !cityReady || handle == 0L) return
+    if (speed == 0) { Notifier.postPaused(applicationContext, cityName); return }
     simSuspended = true
     val now = System.currentTimeMillis()
     val ctx = applicationContext
@@ -20,6 +21,7 @@ internal fun MainActivity.startBackgroundPlay() {
 
 internal fun MainActivity.resumeFromBackgroundPlay() {
     val ctx = applicationContext
+    Notifier.cancelPaused(ctx)
     if (!simSuspended && !BackgroundScheduler.isActive(ctx)) return
     sim.post {
         val caught = ArrayList<Triple<Int, Int, Int>>()          // (message, x, y) seen while catching up
