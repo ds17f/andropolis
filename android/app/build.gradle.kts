@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "micropolis.port"
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion = "30.0.16248370"
 
     defaultConfig {
@@ -13,7 +13,7 @@ android {
         // the JNI symbol names depend on it.
         applicationId = "io.github.ds17f.andropolis"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         // Bumped by scripts/release.sh; F-Droid reads these literals at each tag.
         versionCode = 1
         versionName = "0.1.0"

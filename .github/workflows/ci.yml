@@ -20,7 +20,7 @@ jobs:
       - name: NDK and CMake
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;30.0.16248370" "cmake;3.22.1"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;30.0.16248370" "cmake;3.22.1" "platforms;android-36"
       - name: Engine tests (host build)
         run: |
           cmake -S android -B android/build-host -DCMAKE_BUILD_TYPE=Release
