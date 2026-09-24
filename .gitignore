@@ -27,3 +27,8 @@ tasks/logs/
 
 # isolated dispatch worktrees
 .worktrees/
+
+# release secrets — never commit these
+.secrets
+upload.jks
+secrets/
