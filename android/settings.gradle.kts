@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "MicropolisPort"
+rootProject.name = "Andropolis"
 include(":app")
