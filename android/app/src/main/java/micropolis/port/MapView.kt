@@ -44,6 +44,7 @@ class MapView(context: Context) : View(context) {
     private var panY = 0f
     private var tileSize = 0f
     private var fillOnLayout = false
+    private var pendingZoomTile: Pair<Int, Int>? = null
     private var panning = false
     private var lastFocusX = 0f
     private var lastFocusY = 0f
@@ -87,8 +88,11 @@ class MapView(context: Context) : View(context) {
         clampPan(); invalidate()
     }
 
-    /** Centre on a tile, zooming in to at least `minScale` (unless navigation is locked). */
+    /** Centre on a tile, zooming in to at least `minScale` (unless navigation is locked).
+     *  Safe to call before layout: with width/height still 0, centerOnTile would compute
+     *  garbage pan values, so the tile is applied once onSizeChanged actually runs. */
     fun zoomToTile(tx: Int, ty: Int, minScale: Float = 3f) {
+        if (width == 0 || height == 0) { pendingZoomTile = tx to ty; return }
         if (!navLocked && scale < minScale) scale = minScale.coerceIn(1f, 8f)
         centerOnTile(tx, ty)
     }
@@ -134,6 +138,7 @@ class MapView(context: Context) : View(context) {
         super.onSizeChanged(w, h, oldw, oldh)
         tileSize = w.toFloat() / cols
         if (fillOnLayout) { fillOnLayout = false; zoomToFill() }
+        pendingZoomTile?.let { (tx, ty) -> pendingZoomTile = null; zoomToTile(tx, ty) }
         clampPan()
         invalidate()
     }
