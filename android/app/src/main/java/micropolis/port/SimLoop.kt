@@ -19,6 +19,10 @@ import androidx.appcompat.app.AppCompatActivity
 // The sim-thread tick loop (30 fps), autosaves, engine events and the message log.
 // Extension functions on MainActivity; state lives in MainActivity.kt.
 
+internal val monthNames = arrayOf("Jan","Feb","Mar","Apr","May","Jun",
+                                   "Jul","Aug","Sep","Oct","Nov","Dec")
+internal fun dateTextFor(year: Int, month: Int) = "${monthNames.getOrElse(month) { "?" }} $year"
+
 /** Sim thread: write a timestamped autosave of the current city into Documents/Andropolis. */
 internal fun MainActivity.publicAutosave() {
     lastPublicAutosaveMs = android.os.SystemClock.uptimeMillis()
@@ -29,9 +33,34 @@ internal fun MainActivity.publicAutosave() {
     catch (e: Exception) { android.util.Log.w("Andropolis", "autosave failed", e) }
 }
 
-internal fun MainActivity.logMessage(text: String, x: Int, y: Int) {
-    messageLog.addFirst(LogEntry(dateText, text, x, y))   // newest first
+internal fun MainActivity.logMessage(text: String, x: Int, y: Int, date: String = dateText) {
+    messageLog.addFirst(LogEntry(date, text, x, y))   // newest first
     while (messageLog.size > 50) messageLog.removeLast()
+}
+
+/** Persist the message log next to the private autosave, so it survives an app restart. Call
+ *  it on the same cadence the autosave itself is written (periodic tick + onPause). */
+internal fun MainActivity.saveMessageLog() {
+    try {
+        val arr = org.json.JSONArray()
+        for (m in messageLog) arr.put(org.json.JSONObject().apply {
+            put("date", m.date); put("text", m.text); put("x", m.x); put("y", m.y)
+        })
+        messageLogFile.writeText(arr.toString())
+    } catch (e: Exception) { android.util.Log.w("Andropolis", "message log save failed", e) }
+}
+
+/** Load the message log saved alongside the private autosave (empty if there is none yet). */
+internal fun MainActivity.loadMessageLog() {
+    if (!messageLogFile.exists()) return
+    try {
+        val arr = org.json.JSONArray(messageLogFile.readText())
+        messageLog.clear()
+        for (i in 0 until arr.length()) {
+            val o = arr.getJSONObject(i)
+            messageLog.addLast(LogEntry(o.getString("date"), o.getString("text"), o.getInt("x"), o.getInt("y")))
+        }
+    } catch (e: Exception) { android.util.Log.w("Andropolis", "message log load failed", e) }
 }
 
 internal fun MainActivity.msgText(i: Int) = messageText.getOrElse(i) { "City update" }
@@ -53,6 +82,7 @@ internal fun MainActivity.tickLoop() {
         if (now - lastAutosaveMs > 30_000L) {
             lastAutosaveMs = now
             MicropolisNative.saveCity(handle, autosavePath)
+            ui.post { saveMessageLog() }
         }
         if (lastPublicAutosaveMs == 0L) lastPublicAutosaveMs = now
         if (now - lastPublicAutosaveMs > 5 * 60_000L) publicAutosave()
@@ -79,10 +109,7 @@ internal fun MainActivity.tickLoop() {
     MicropolisNative.getStats(handle, statsBuf)
     val funds = statsBuf[1]; val pop = statsBuf[2]; val score = statsBuf[3]
     val year = statsBuf[4]; val month = statsBuf[5]
-    val months = arrayOf("Jan","Feb","Mar","Apr","May","Jun",
-                        "Jul","Aug","Sep","Oct","Nov","Dec")
-    val monthName = months.getOrElse(month) { "?" }
-    
+
     // Disaster frequency logic: once per new game month
     val monthKey = year * 12 + month
     if (monthKey != lastDisasterMonth) {
@@ -97,7 +124,7 @@ internal fun MainActivity.tickLoop() {
     }
     
     ui.post {
-        dateText = "$monthName $year"; updateSubtitle()
+        dateText = dateTextFor(year, month); updateSubtitle()
         fundsValue.text = "\$" + "%,d".format(funds)
         popValue.text = "%,d".format(pop)
         scoreValue.text = "$score"

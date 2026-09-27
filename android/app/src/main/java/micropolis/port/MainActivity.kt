@@ -54,6 +54,7 @@ class MainActivity : AppCompatActivity() {
     internal val taxRates = intArrayOf(0, 5, 7, 9, 12, 15, 20)
     internal var taxIdx = 2   // start at 7%
     internal val autosavePath by lazy { java.io.File(filesDir, "autosave.cty").absolutePath }
+    internal val messageLogFile by lazy { java.io.File(filesDir, "messages.json") }
     internal val prefs by lazy { getSharedPreferences("micropolis", MODE_PRIVATE) }
     internal fun sanitize(name: String) = name.trim().replace(Regex("[^A-Za-z0-9 _-]"), "").ifEmpty { "City" }
     internal var cityName: String = "My City"
@@ -191,6 +192,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         java.io.File(filesDir, "undo").deleteRecursively()   // old whole-city undo snapshots (pre-052)
+        loadMessageLog()   // restore message history from the last session (same city continuing)
 
         // Saves used to live in private storage (filesDir/city.cty, then filesDir/cities/).
         // Copy them once into the public Documents/Andropolis folder; leave the originals.
@@ -305,6 +307,7 @@ class MainActivity : AppCompatActivity() {
         "Nuclear Waste")
     override fun onPause() {
         super.onPause()
+        saveMessageLog()
         if (cityReady && handle != 0L) sim.post {
             MicropolisNative.saveCity(handle, autosavePath)
             // leaving the app: also keep a timestamped autosave (at most one a minute)

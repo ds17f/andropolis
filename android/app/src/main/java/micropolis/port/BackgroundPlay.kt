@@ -37,9 +37,10 @@ internal fun MainActivity.resumeFromBackgroundPlay() {
         MicropolisNative.saveCity(handle, autosavePath)
         val st = IntArray(10); MicropolisNative.getStats(handle, st)
         val away = (st[4] * 12 + st[5]) - prefs.getInt("bgLeftMonth", st[4] * 12 + st[5])
+        val caughtDate = dateTextFor(st[4], st[5])   // the live dateText field is not refreshed yet
         ui.post {
             resetHistory()                                       // the city moved on; old undo no longer applies
-            for ((m, x, y) in caught) logMessage(GameText.messages.getOrElse(m) { "City event" }, x, y)
+            for ((m, x, y) in caught) logMessage(GameText.messages.getOrElse(m) { "City event" }, x, y, caughtDate)
             if (res.paused) {
                 updatePlayPauseText(); updateSpeedChipText()
                 if (res.x >= 0) mapView.zoomToTile(res.x, res.y)
