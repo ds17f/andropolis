@@ -60,17 +60,37 @@ to Google Play.
 
 ### 1.4 Set up Google Play
 
-1. In the Play Console, make a new app. Use the package name
-   `io.github.ds17f.andropolis`.
-2. Fill in the store listing. Use the text and the images in
-   `fastlane/metadata/android/en-US/`.
-3. Fill in the content rating, the data safety form, and the target audience.
-   The app collects no data and has no network access.
-4. Upload the first AAB manually. Google Play needs one manual upload before
-   the API can upload.
-5. In Google Cloud, make a service account. Give it access to this app in the
+There is no API for the store listing, content rating, or data safety form.
+Do these steps by hand in the Play Console.
+
+1. Make a new app. Use the package name `io.github.ds17f.andropolis`.
+2. Fill in the store listing, under Grow > Store presence > Main store listing:
+   - App name: contents of `fastlane/metadata/android/en-US/title.txt`.
+   - Short description: contents of `.../short_description.txt`.
+   - Full description: contents of `.../full_description.txt`.
+   - App icon: `.../images/icon.png` (512x512).
+   - Feature graphic: `.../images/featureGraphic.png` (1024x500).
+   - Phone screenshots: `.../images/phoneScreenshots/*.png` (2 minimum).
+   - 7-inch and 10-inch tablet screenshots (optional but recommended):
+     `.../images/sevenInchScreenshots/*.png` and `.../tenInchScreenshots/*.png`.
+3. Fill in the content rating questionnaire (Grow > Store presence >
+   App content > Content rating). The app has no violence, gambling, or user
+   content; rate it as a general-audience simulation/strategy game.
+4. Fill in the data safety form (App content > Data safety). The app collects
+   no data and has no network access — declare "No data collected."
+5. Fill in the target audience and content declaration (App content > Target
+   audience). This is not a kids' app.
+6. Declare the `SCHEDULE_EXACT_ALARM` use if the console's App content
+   section asks for it (see 1.5).
+7. Upload the first AAB manually (Production or Internal testing, your
+   choice), filled in with a release name and the changelog text from
+   `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`. Google Play
+   needs one manual upload before the API can upload.
+8. In Google Cloud, make a service account. Give it access to this app in the
    Play Console (Users and permissions). Make a JSON key for the service
-   account. Put the JSON in the `PLAY_SERVICE_ACCOUNT_JSON` secret.
+   account. Put the JSON in the `PLAY_SERVICE_ACCOUNT_JSON` secret. After
+   this, the release workflow's `Upload to Google Play` step uploads each
+   tagged release's AAB to the `internal` track automatically.
 
 ### 1.5 Exact alarms and Google Play policy
 
