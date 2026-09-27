@@ -123,6 +123,7 @@ int micropolis_save_city(MicropolisEngine *e, const char *path) {
 void micropolis_sim_tick(MicropolisEngine *e) {
     if (e) {
         micropolisSimTick(e->sim);   // simTick() that keeps the monster alive (micropolis_seeded.cpp)
+        e->sim->animateTiles();      // advance ANIMBIT tile frames (fire, rubble, traffic, wires, …)
     }
 }
 

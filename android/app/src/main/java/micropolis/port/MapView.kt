@@ -11,6 +11,10 @@ import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
 
+private const val ZONEBIT = 0x0400
+private const val PWRBIT = 0x8000
+private const val LIGHTNINGBOLT = 827
+
 /**
  * Renderer: draws the 120x100 tile map using the real tile atlas.
  * The atlas is a 256×960 PNG with 16×16 tiles in a 16-column, 60-row grid.
@@ -349,7 +353,25 @@ class MapView(context: Context) : View(context) {
                 canvas.drawBitmap(atlas, srcRect, dstRect, paint)
             }
         }
-        
+
+        // Blink a lightning bolt over unpowered zone centers (display-time only —
+        // never written back into `tiles` or the engine's map).
+        if ((System.currentTimeMillis() / 500) % 2 == 0L) {
+            val boltCol = LIGHTNINGBOLT % 16
+            val boltRow = LIGHTNINGBOLT / 16
+            srcRect.set(boltCol * 16, boltRow * 16, boltCol * 16 + 16, boltRow * 16 + 16)
+            for (x in 0 until cols) {
+                val base = x * rows
+                for (y in 0 until rows) {
+                    val raw = tiles[base + y].toInt()
+                    if ((raw and ZONEBIT) != 0 && (raw and PWRBIT) == 0) {
+                        dstRect.set(x * tileSize, y * tileSize, (x + 1) * tileSize, (y + 1) * tileSize)
+                        canvas.drawBitmap(atlas, srcRect, dstRect, paint)
+                    }
+                }
+            }
+        }
+
         // Draw overlay heatmap tint
         val ov = overlayData
         if (overlayMode != 0 && ov != null && ov.size >= cols * rows) {
