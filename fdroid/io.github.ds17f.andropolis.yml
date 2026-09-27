@@ -16,7 +16,7 @@ Repo: https://github.com/ds17f/andropolis.git
 Builds:
   - versionName: 0.1.2
     versionCode: 3
-    commit: 524a29d7342fcd6d5132d1321fe80311c890ff12
+    commit: 3615c6649bcc51f586a240e1d90c77eef469eff3
     subdir: android/app
     submodules: true
     gradle:

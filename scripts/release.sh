@@ -12,16 +12,26 @@ f=android/app/build.gradle.kts
 code=$(( $(grep -oP 'versionCode = \K[0-9]+' "$f") + 1 ))
 sed -i -E "s/versionCode = [0-9]+/versionCode = $code/; s/versionName = \"[^\"]+\"/versionName = \"$ver\"/" "$f"
 printf '%s\n' "$notes" > "fastlane/metadata/android/en-US/changelogs/$code.txt"
-# Keep the F-Droid draft in sync so a later release is just "copy this file into the fork".
+git add "$f" "fastlane/metadata/android/en-US/changelogs/$code.txt"
+git commit -m "release v$ver (versionCode $code)"
+release_sha=$(git rev-parse HEAD)
+
+# Keep the F-Droid draft in sync so a later release is just "copy this file into the
+# fork". Its `commit:` field must be a real 40-char hash, not a tag or branch name
+# (F-Droid requires this) - point it at the release commit above, in its OWN commit:
+# embedding a commit's hash inside itself is impossible (the hash covers the content).
 fdroid_meta="fdroid/io.github.ds17f.andropolis.yml"
 if [[ -f "$fdroid_meta" ]]; then
     sed -i -E "s/versionName: [0-9.]+/versionName: $ver/; \
         s/versionCode: [0-9]+/versionCode: $code/; \
-        s/commit: v[0-9.]+/commit: v$ver/; \
+        s/commit: [0-9a-f]{40}/commit: $release_sha/; \
         s/CurrentVersion: [0-9.]+/CurrentVersion: $ver/; \
         s/CurrentVersionCode: [0-9]+/CurrentVersionCode: $code/" "$fdroid_meta"
+    git add "$fdroid_meta"
+    git commit -m "fdroid: bump metadata to v$ver (versionCode $code)"
 fi
-git add "$f" "fastlane/metadata/android/en-US/changelogs/$code.txt"${fdroid_meta:+ "$fdroid_meta"}
-git commit -m "release v$ver (versionCode $code)"
+
+# Tag whichever commit is now HEAD (with or without the fdroid-sync commit above) -
+# CI only checks versionName in build.gradle.kts, unchanged by either commit.
 git tag -a "v$ver" -m "Micropolis $ver"
-echo "Tagged v$ver (versionCode $code). Push with: git push origin main --tags"
+echo "Tagged v$ver (versionCode $code) at $(git rev-parse HEAD). Push with: git push origin main --tags"
