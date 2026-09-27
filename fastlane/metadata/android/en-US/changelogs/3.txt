@@ -1,0 +1,1 @@
+Fix background-play pausing, bulldoze/meltdown animation freezing, and message log; restore the unpowered-zone blink.
