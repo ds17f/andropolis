@@ -69,11 +69,17 @@ internal fun MainActivity.updateUndoButtons() {
     undoBtn.isEnabled = canUndo; undoBtn.alpha = if (canUndo) 1f else 0.35f
 }
 
-/** Drop the undo/redo history and message log (new city or loaded city) — old
- *  messages were logged against a different timeline and can be dated later
- *  than the city's current date once it's reloaded to an earlier point. */
+/** Drop the undo/redo history (new city, loaded city, or a background-play catch-up —
+ *  none of these make old build edits undoable). Does NOT touch the message log: a
+ *  background catch-up is still the same city's history, just caught up in time. */
 internal fun MainActivity.resetHistory() {
     undoStack.clear(); redoStack.clear()
     updateUndoButtons()
+}
+
+/** Drop the message log too — only for an actually different city (new game, loaded
+ *  city), where old messages were logged against a timeline that no longer applies. */
+internal fun MainActivity.resetHistoryAndMessages() {
+    resetHistory()
     messageLog.clear()
 }

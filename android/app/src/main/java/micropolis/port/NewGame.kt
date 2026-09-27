@@ -34,7 +34,7 @@ private fun MainActivity.stageAsset(asset: String): String {
 
 private fun MainActivity.adoptCity(name: String, onDone: () -> Unit) {
     cityName = name; prefs.edit().putString("cityName", name).apply(); toolbar.title = name
-    resetHistory()                    // undo does not cross cities
+    resetHistoryAndMessages()         // undo/messages do not cross cities
     onDone()
 }
 
@@ -51,7 +51,7 @@ internal fun MainActivity.startNewMap(trees: Int, lakes: Int, river: Int, island
         MicropolisNative.saveCity(handle, autosavePath)   // reset autosave to the new city
         cityReady = true
         ui.post {
-            resetHistory()
+            resetHistoryAndMessages()
             promptCityName(isFirst = true, onDismiss = onDone)
         }
     }

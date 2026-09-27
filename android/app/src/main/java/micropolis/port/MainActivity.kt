@@ -78,7 +78,7 @@ class MainActivity : AppCompatActivity() {
                 CitySaves.copyFromUri(this, uri, tmp)
                 MicropolisNative.loadCity(handle, tmp.absolutePath)
                 MicropolisNative.saveCity(handle, autosavePath)   // make restore-on-launch match
-                ui.post { resetHistory() }                         // undo does not cross cities
+                ui.post { resetHistoryAndMessages() }              // undo/messages do not cross cities
             }
             showBanner("Loaded “$name”")
         }
