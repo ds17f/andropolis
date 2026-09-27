@@ -18,6 +18,10 @@ PKG      := micropolis.port
 APK      := android/app/build/outputs/apk/debug/app-debug.apk
 AVD      ?= Pixel_API_36
 HEADLESS ?= 1
+# swiftshader/swiftshader_indirect segfault on this host (emulator 36.5.11's
+# bundled SwiftShader crashes in libGLESv2 on boot, on every AVD). -gpu host
+# uses the real GPU via Mesa instead and boots fine.
+GPU      ?= host
 
 ANDROID_HOME ?= $(shell if [ -f android/local.properties ]; then sed -n "s/^sdk.dir=//p" android/local.properties; fi)
 ADB      := $(ANDROID_HOME)/platform-tools/adb
@@ -52,7 +56,7 @@ launch:
 
 run: build
 ifeq ($(HEADLESS),1)
-	@pgrep -f "emulator.*$(AVD)" >/dev/null || $(EMULATOR) -avd $(AVD) -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect &
+	@pgrep -f "emulator.*$(AVD)" >/dev/null || $(EMULATOR) -avd $(AVD) -no-window -no-audio -no-boot-anim -gpu $(GPU) &
 else
 	@pgrep -f "emulator.*$(AVD)" >/dev/null || $(EMULATOR) -avd $(AVD) &
 endif

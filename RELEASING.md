@@ -121,11 +121,23 @@ other.
 3. Copy `fdroid/io.github.ds17f.andropolis.yml` to
    `metadata/io.github.ds17f.andropolis.yml` in your fork.
 4. Update `versionName`, `versionCode`, `commit`, `CurrentVersion`, and
-   `CurrentVersionCode` to the values of the tag.
-5. Run `fdroid lint` and `fdroid build -v -l io.github.ds17f.andropolis` if you
+   `CurrentVersionCode` to the values of the tag. The `commit` field must be
+   the full 40-character commit hash of the tag (`git rev-parse
+   v0.1.1^{commit}`), not the tag name. F-Droid rejects a tag or branch name
+   in this field.
+5. Do not add a `Description` field, or other summary/description/changelog/
+   image content, to the metadata file. That content must come from
+   `fastlane/metadata/android/en-US/` in the upstream repo (Part 4), not be
+   duplicated here.
+6. Run `fdroid lint` and `fdroid build -v -l io.github.ds17f.andropolis` if you
    have the F-Droid tools. If you do not have them, the CI of the merge request
    does these checks.
-6. Open a merge request. Answer the questions of the reviewers.
+7. Open a merge request titled exactly `New app: Andropolis`. Use the
+   [App inclusion](https://gitlab.com/fdroid/fdroiddata/-/raw/master/.gitlab/merge_request_templates/App%20inclusion.md)
+   merge request template as the description and check off each item — do
+   not replace it with a free-form summary. Reviewers close merge requests on
+   sight if the template is not followed. Answer the questions of the
+   reviewers.
 
 ### 3.2 Known risks for the F-Droid build
 
