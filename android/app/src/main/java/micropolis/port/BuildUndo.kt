@@ -69,8 +69,11 @@ internal fun MainActivity.updateUndoButtons() {
     undoBtn.isEnabled = canUndo; undoBtn.alpha = if (canUndo) 1f else 0.35f
 }
 
-/** Drop the undo/redo history (new city or loaded city). */
+/** Drop the undo/redo history and message log (new city or loaded city) — old
+ *  messages were logged against a different timeline and can be dated later
+ *  than the city's current date once it's reloaded to an earlier point. */
 internal fun MainActivity.resetHistory() {
     undoStack.clear(); redoStack.clear()
     updateUndoButtons()
+    messageLog.clear()
 }

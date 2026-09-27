@@ -14,7 +14,7 @@
 #
 # Override: AVD=<avd> make run   HEADLESS=0 make run  (show the emulator window)
 
-PKG      := micropolis.port
+PKG      := io.github.ds17f.andropolis.debug   # debug build's applicationId (build.gradle applicationIdSuffix ".debug")
 APK      := android/app/build/outputs/apk/debug/app-debug.apk
 AVD      ?= Pixel_API_36
 HEADLESS ?= 1
