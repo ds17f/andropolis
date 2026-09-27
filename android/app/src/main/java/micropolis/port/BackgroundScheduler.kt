@@ -147,6 +147,11 @@ object BackgroundScheduler {
                              .coerceAtLeast(0).toInt()
             val r = BackgroundSim.replayInto(h, p, anchorFile(ctx).path, p.getLong(K_RNG, 0L), ticks, onEvent)
             val res = Resume(paused, p.getInt(K_X, -1), p.getInt(K_Y, -1), p.getString(K_TITLE, "") ?: "", ticks)
+            // The player is looking at the app now (paused at the event, or caught up past it) —
+            // any event notification still showing is stale, so clear all of them. K_GROUP alone
+            // is not reliable here: catch-up may have overwritten it with a later, not-yet-notified
+            // stop's group, which would miss the notification actually on screen.
+            BackgroundPrefs.GROUPS.forEach { Notifier.cancel(ctx, it) }
             clear(ctx)
             return if (r == null) null else res
         }

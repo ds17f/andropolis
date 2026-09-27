@@ -84,6 +84,12 @@ object Notifier {
         NotificationManagerCompat.from(ctx).cancel(PAUSED_ID)
     }
 
+    /** Remove a group's event notification. Used on resume to clear any notification the
+     *  player did not tap — the app is open now, so it would only be stale if tapped later. */
+    fun cancel(ctx: Context, g: BackgroundPrefs.Group) {
+        NotificationManagerCompat.from(ctx).cancel(g.id.hashCode())
+    }
+
     /** Which group an engine message (index into messageText, 1..57) belongs to, or null. */
     fun groupForMessage(msg: Int): BackgroundPrefs.Group? {
         val id = when (msg) {

@@ -28,6 +28,10 @@ internal fun MainActivity.resumeFromBackgroundPlay() {
         val res = if (handle != 0L) BackgroundScheduler.resume(ctx, handle) { e ->
             if (e[0] == 0) caught.add(Triple(e[3], e[1], e[2]))
         } else null
+        // Pause on the sim thread, before simSuspended is released, so tickLoop() (also sim
+        // thread) cannot see "not suspended, still at the old speed" and tick past the event
+        // before the UI thread gets around to setting speed = 0.
+        if (res?.paused == true && speed != 0) { lastRunSpeed = speed; speed = 0 }
         simSuspended = false
         if (res == null) return@post
         MicropolisNative.saveCity(handle, autosavePath)
@@ -37,7 +41,6 @@ internal fun MainActivity.resumeFromBackgroundPlay() {
             resetHistory()                                       // the city moved on; old undo no longer applies
             for ((m, x, y) in caught) logMessage(GameText.messages.getOrElse(m) { "City event" }, x, y)
             if (res.paused) {
-                if (speed != 0) { lastRunSpeed = speed; speed = 0 }
                 updatePlayPauseText(); updateSpeedChipText()
                 if (res.x >= 0) mapView.zoomToTile(res.x, res.y)
                 showBanner("⏸  ${res.title}")
