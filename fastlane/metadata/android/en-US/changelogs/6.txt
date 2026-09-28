@@ -1,0 +1,1 @@
+Autosaves are now in a folder for each city. Each save keeps its message log. The Annual Report now shows the numbers of the new year, and it does not open when you load a city.
