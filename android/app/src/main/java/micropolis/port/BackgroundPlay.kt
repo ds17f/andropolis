@@ -39,6 +39,10 @@ internal fun MainActivity.resumeFromBackgroundPlay() {
         if (res == null) return@post
         MicropolisNative.saveCity(handle, autosavePath)
         val st = IntArray(10); MicropolisNative.getStats(handle, st)
+        // Paused at a background event: the replay above may have crossed a new year, and
+        // tickLoop() (same sim thread) would otherwise see year == lastReportYear + 1 on its
+        // next tick and pop the Annual Report on top of the event the player came back to see.
+        if (res.paused) lastReportYear = st[4]
         val away = (st[4] * 12 + st[5]) - prefs.getInt("bgLeftMonth", st[4] * 12 + st[5])
         ui.post {
             resetHistory()                                       // the city moved on; old undo no longer applies
