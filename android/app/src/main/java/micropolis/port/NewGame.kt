@@ -47,6 +47,7 @@ internal fun MainActivity.startNewMap(trees: Int, lakes: Int, river: Int, island
     sim.post {
         MicropolisNative.setTerrain(handle, trees, lakes, river, island)
         MicropolisNative.generateRandomCity(handle)
+        resetReportBaselines()
         MicropolisNative.setFunds(handle, 20_000)          // generating keeps the old city's money; Easy start
         MicropolisNative.saveCity(handle, autosavePath)   // reset autosave to the new city
         cityReady = true
@@ -63,6 +64,7 @@ internal fun MainActivity.startScenario(sc: ScenarioInfo, onDone: () -> Unit) {
     cityReady = false
     sim.post {
         MicropolisNative.loadScenario(handle, sc.id, path)
+        resetReportBaselines()
         MicropolisNative.saveCity(handle, autosavePath)
         cityReady = true
         ui.post { adoptCity(sc.name, onDone) }
@@ -75,6 +77,7 @@ internal fun MainActivity.startSampleCity(name: String, onDone: () -> Unit) {
     cityReady = false
     sim.post {
         MicropolisNative.loadCity(handle, path)
+        resetReportBaselines()
         MicropolisNative.saveCity(handle, autosavePath)
         cityReady = true
         ui.post { adoptCity(name.replaceFirstChar { it.uppercase() }, onDone) }

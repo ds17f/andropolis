@@ -249,9 +249,12 @@ internal fun MainActivity.showBudgetDialog(b: IntArray) {
 }
 
 internal fun MainActivity.showEvalDialog(ev: IntArray) {
+    // Population Δ is bogus until the first yearly evaluation after a load (evalInit()
+    // zeroes the engine's cityPop, so cityPopDelta == cityPop right after any load).
+    val pop = if (yearRolledSinceLoad) "${ev[3]} (Δ ${ev[4]})" else "${ev[3]}"
     styledDialog("City Evaluation", listOf(
         "Score" to "${ev[0]} (Δ ${ev[1]})", "Class" to cityClassNames.getOrElse(ev[2]) { "?" },
-        "Population" to "${ev[3]} (Δ ${ev[4]})", "Assessed value" to "$${ev[5]}",
+        "Population" to pop, "Assessed value" to "$${ev[5]}",
         "Approval" to "${ev[6]}%"))
 }
 
@@ -264,14 +267,16 @@ internal fun MainActivity.showReportCard(year: Int, resume: Boolean) {
             val concerns = (0 until minOf(np, 2)).joinToString("\n") {
                 "${problemIcons.getOrElse(p[it]) { "•" }} ${problemNames.getOrElse(p[it]) { "?" }} ${p[4 + it]}%" }
             fun signed(n: Int) = if (n >= 0) "+$n" else "$n"
-            val fundsDelta = if (lastReportFunds >= 0) b[0] - lastReportFunds else 0
-            val apprDelta = if (lastReportApproval >= 0) ev[6] - lastReportApproval else 0
-            lastReportFunds = b[0]; lastReportApproval = ev[6]
+            // Show a Δ only when there is a baseline to compare against — otherwise omit it
+            // rather than show a meaningless "+0".
+            val pop = if (lastReportPop >= 0) "${ev[3]} (Δ ${signed(ev[3] - lastReportPop)})" else "${ev[3]}"
+            val funds = if (lastReportFunds >= 0) "$${b[0]} (Δ ${signed(b[0] - lastReportFunds)})" else "$${b[0]}"
+            val appr = if (lastReportApproval >= 0) "${ev[6]}% (Δ ${signed(ev[6] - lastReportApproval)}%)" else "${ev[6]}%"
+            lastReportPop = ev[3]; lastReportFunds = b[0]; lastReportApproval = ev[6]
             styledDialog("Annual Report", listOf(
                 "Class" to cityClassNames.getOrElse(ev[2]) { "?" },
-                "Population" to "${ev[3]} (Δ ${ev[4]})", "Score" to "${ev[0]} (Δ ${ev[1]})",
-                "Approval" to "${ev[6]}% (Δ ${signed(apprDelta)}%)",
-                "Funds" to "$${b[0]} (Δ ${signed(fundsDelta)})", "Tax" to "${b[1]}%")
+                "Population" to pop, "Score" to "${ev[0]} (Δ ${ev[1]})",
+                "Approval" to appr, "Funds" to funds, "Tax" to "${b[1]}%")
                 + (if (np > 0) listOf("Top concerns" to concerns) else emptyList()),
                 actionLabel = "Continue", subtitle = "Year $year",
                 onAction = { if (resume && speed == 0) { speed = lastRunSpeed; updatePlayPauseText(); updateSpeedChipText() } })

@@ -40,6 +40,11 @@ Java_micropolis_port_MicropolisNative_simTick(JNIEnv *, jobject, jlong h) {
 }
 
 JNIEXPORT jint JNICALL
+Java_micropolis_port_MicropolisNative_getPhase(JNIEnv *, jobject, jlong h) {
+    return micropolis_get_phase(eng(h));
+}
+
+JNIEXPORT jint JNICALL
 Java_micropolis_port_MicropolisNative_doTool(JNIEnv *, jobject, jlong h, jint tool, jint x, jint y) {
     return micropolis_do_tool(eng(h), tool, x, y);
 }

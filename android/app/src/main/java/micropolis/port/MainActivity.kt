@@ -78,6 +78,7 @@ class MainActivity : AppCompatActivity() {
                 val tmp = CitySaves.tempFile(this)
                 CitySaves.copyFromUri(this, uri, tmp)
                 MicropolisNative.loadCity(handle, tmp.absolutePath)
+                resetReportBaselines()
                 MicropolisNative.saveCity(handle, autosavePath)   // make restore-on-launch match
                 val json = CitySaves.readSideFile(this, uri)
                 ui.post {
@@ -118,9 +119,11 @@ class MainActivity : AppCompatActivity() {
     internal val overlayBuf = ByteArray(120 * 100)
     internal val overlayNames = arrayOf("Off","Population","Traffic","Pollution","Land value","Crime","Growth","Power")
     internal var annualReportEnabled = true
-    internal var lastReportYear = -1
-    internal var lastReportFunds = -1        // for the annual-report funds delta
-    internal var lastReportApproval = -1     // for the annual-report approval delta
+    @Volatile internal var lastReportYear = -1
+    @Volatile internal var lastReportFunds = -1        // for the annual-report funds delta
+    @Volatile internal var lastReportApproval = -1     // for the annual-report approval delta
+    @Volatile internal var lastReportPop = -1          // for the annual-report population delta
+    @Volatile internal var yearRolledSinceLoad = false // engine's cityPopDelta is bogus until this is true
     internal var minimapNav = true           // Settings (default on): minimap navigation mode
     internal var autoGoto = true             // Settings: jump the map to events as they happen
     internal val navZoom = 5f                 // fixed zoom when minimap navigation is on
@@ -275,6 +278,7 @@ class MainActivity : AppCompatActivity() {
             val hasSave = java.io.File(autosavePath).exists()
             if (hasSave) {
                 MicropolisNative.loadCity(handle, autosavePath)
+                resetReportBaselines()
                 cityReady = true
                 ui.post {
                     cityName = prefs.getString("cityName", "My City") ?: "My City"
@@ -282,6 +286,7 @@ class MainActivity : AppCompatActivity() {
                 }
             } else {
                 MicropolisNative.generateRandomCity(handle)
+                resetReportBaselines()
                 cityReady = true
                 ui.post {
                     promptCityName(isFirst = true)   // name a brand-new city

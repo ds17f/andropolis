@@ -13,6 +13,9 @@ object MicropolisNative {
     external fun init(handle: Long)
     external fun generateRandomCity(handle: Long)
     external fun simTick(handle: Long)
+
+    /** The next phase simTick will run (0..15, sim->phaseCycle). */
+    external fun getPhase(handle: Long): Int
     external fun doTool(handle: Long, tool: Int, x: Int, y: Int): Int
     external fun mapWidth(): Int
     external fun mapHeight(): Int

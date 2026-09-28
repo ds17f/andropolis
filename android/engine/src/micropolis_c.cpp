@@ -127,6 +127,10 @@ void micropolis_sim_tick(MicropolisEngine *e) {
     }
 }
 
+int micropolis_get_phase(const MicropolisEngine *e) {
+    return e ? int(e->sim->phaseCycle) : 0;
+}
+
 void micropolis_set_terrain(MicropolisEngine *e, int trees, int lakes, int river, int island) {
     if (!e) return;
     e->sim->terrainTreeLevel = trees;

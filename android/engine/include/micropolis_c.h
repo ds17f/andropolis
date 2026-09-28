@@ -47,6 +47,8 @@ int  micropolis_save_city(MicropolisEngine *e, const char *path);
 /* ---- Simulation control ---- */
 void micropolis_sim_tick(MicropolisEngine *e);
 void micropolis_sim_update(MicropolisEngine *e);
+/* The next phase micropolis_sim_tick will run (0..15, sim->phaseCycle). */
+int  micropolis_get_phase(const MicropolisEngine *e);
 void micropolis_set_speed(MicropolisEngine *e, int speed);      /* 0..3 */
 void micropolis_set_passes(MicropolisEngine *e, int passes);
 void micropolis_set_city_tax(MicropolisEngine *e, int tax);

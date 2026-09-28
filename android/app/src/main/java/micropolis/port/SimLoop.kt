@@ -88,6 +88,12 @@ internal fun MainActivity.msgIcon(i: Int): String = when (i) {
     47 -> "🏆"; 48 -> "💀"; else -> "ℹ"
 }
 
+/** Sim thread, right after the engine gets a different city: forget the report baselines. */
+internal fun MainActivity.resetReportBaselines() {
+    lastReportYear = -1; lastReportFunds = -1; lastReportApproval = -1; lastReportPop = -1
+    yearRolledSinceLoad = false
+}
+
 internal fun MainActivity.tickLoop() {
     if (simSuspended) { sim.postDelayed({ tickLoop() }, 250); return }   // background play owns the city
     if (cityReady && handle != 0L) {
@@ -142,10 +148,22 @@ internal fun MainActivity.tickLoop() {
         popValue.text = "%,d".format(pop)
         scoreValue.text = "$score"
     }
+    // After a city change or app start: baseline funds/pop here (approval only gets a
+    // baseline from an actual report — the engine's approval isn't valid before its first
+    // evaluation). cityPop reads 0 until the engine's first tick after a load (a load made
+    // while paused ticks nothing), so wait for a real population.
+    if (lastReportFunds < 0) lastReportFunds = funds
+    if (lastReportPop < 0 && pop > 0) lastReportPop = pop
     // Only a real new year (+1). A different year means another city was loaded: no report.
-    val yearRolled = lastReportYear != -1 && year == lastReportYear + 1 && annualReportEnabled
+    val yearRolled = lastReportYear != -1 && year == lastReportYear + 1
+    if (yearRolled) yearRolledSinceLoad = true
     lastReportYear = year
     if (yearRolled) {
+        // The year rolls in engine phase 0; its yearly evaluation runs in phase 9. Tick through
+        // to it so the report (and the header) show this year's numbers, not last year's.
+        while (MicropolisNative.getPhase(handle) in 1..9) MicropolisNative.simTick(handle)
+    }
+    if (yearRolled && annualReportEnabled) {
         ui.post {
             val didPause = speed != 0
             if (didPause) { lastRunSpeed = speed; speed = 0; updatePlayPauseText(); updateSpeedChipText() }
