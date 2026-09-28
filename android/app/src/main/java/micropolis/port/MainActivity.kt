@@ -55,6 +55,7 @@ class MainActivity : AppCompatActivity() {
     internal var taxIdx = 2   // start at 7%
     internal val autosavePath by lazy { java.io.File(filesDir, "autosave.cty").absolutePath }
     internal val messageLogFile by lazy { java.io.File(filesDir, "messages.json") }
+    @Volatile internal var messageLogSnapshot: String? = null   // last JSON saveMessageLog() wrote (ui thread); publicAutosave (sim thread) reads it, up to 30 s stale
     internal val prefs by lazy { getSharedPreferences("micropolis", MODE_PRIVATE) }
     internal fun sanitize(name: String) = name.trim().replace(Regex("[^A-Za-z0-9 _-]"), "").ifEmpty { "City" }
     internal var cityName: String = "My City"
@@ -78,7 +79,11 @@ class MainActivity : AppCompatActivity() {
                 CitySaves.copyFromUri(this, uri, tmp)
                 MicropolisNative.loadCity(handle, tmp.absolutePath)
                 MicropolisNative.saveCity(handle, autosavePath)   // make restore-on-launch match
-                ui.post { resetHistoryAndMessages() }              // undo/messages do not cross cities
+                val json = CitySaves.readSideFile(this, uri)
+                ui.post {
+                    resetHistoryAndMessages()                      // undo/messages do not cross cities
+                    if (json != null) { applyMessageLogJson(json); saveMessageLog() }
+                }
             }
             showBanner("Loaded “$name”")
         }
@@ -88,10 +93,12 @@ class MainActivity : AppCompatActivity() {
         if (uri != null) {
             val name = CitySaves.cityNameFor(this, uri)
             cityName = name; prefs.edit().putString("cityName", name).apply(); toolbar.title = name
+            val json = messageLogJson()
             sim.post {
                 val tmp = CitySaves.tempFile(this)
                 MicropolisNative.saveCity(handle, tmp.absolutePath)
                 CitySaves.copyToUri(this, tmp, uri)
+                CitySaves.writeSideFile(this, uri, json)
                 MicropolisNative.saveCity(handle, autosavePath)
             }
             showBanner("Saved “$name”")

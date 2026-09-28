@@ -23,13 +23,14 @@ internal val monthNames = arrayOf("Jan","Feb","Mar","Apr","May","Jun",
                                    "Jul","Aug","Sep","Oct","Nov","Dec")
 internal fun dateTextFor(year: Int, month: Int) = "${monthNames.getOrElse(month) { "?" }} $year"
 
-/** Sim thread: write a timestamped autosave of the current city into Documents/Andropolis. */
+/** Sim thread: write a timestamped autosave of the current city into its subfolder under
+ *  Documents/Andropolis. */
 internal fun MainActivity.publicAutosave() {
     lastPublicAutosaveMs = android.os.SystemClock.uptimeMillis()
     MicropolisNative.getStats(handle, statsBuf)
     val tmp = CitySaves.tempFile(this)
     MicropolisNative.saveCity(handle, tmp.absolutePath)
-    try { CitySaves.writeAutosave(this, tmp, sanitize(cityName), statsBuf[4], statsBuf[5]) }
+    try { CitySaves.writeAutosave(this, tmp, sanitize(cityName), statsBuf[4], statsBuf[5], messageLogSnapshot) }
     catch (e: Exception) { android.util.Log.w("Andropolis", "autosave failed", e) }
 }
 
@@ -38,29 +39,41 @@ internal fun MainActivity.logMessage(text: String, x: Int, y: Int, date: String 
     while (messageLog.size > 50) messageLog.removeLast()
 }
 
+/** Build the message log as the JSON array text saved to disk / a save's side file. */
+internal fun MainActivity.messageLogJson(): String {
+    val arr = org.json.JSONArray()
+    for (m in messageLog) arr.put(org.json.JSONObject().apply {
+        put("date", m.date); put("text", m.text); put("x", m.x); put("y", m.y)
+    })
+    return arr.toString()
+}
+
+/** Replace the message log with the entries in `json` (same format messageLogJson() writes). */
+internal fun MainActivity.applyMessageLogJson(json: String) {
+    val arr = org.json.JSONArray(json)
+    messageLog.clear()
+    for (i in 0 until arr.length()) {
+        val o = arr.getJSONObject(i)
+        messageLog.addLast(LogEntry(o.getString("date"), o.getString("text"), o.getInt("x"), o.getInt("y")))
+    }
+}
+
 /** Persist the message log next to the private autosave, so it survives an app restart. Call
- *  it on the same cadence the autosave itself is written (periodic tick + onPause). */
+ *  it on the same cadence the autosave itself is written (periodic tick + onPause). Also
+ *  snapshots the JSON for the sim thread's public autosave to attach to its save. */
 internal fun MainActivity.saveMessageLog() {
     try {
-        val arr = org.json.JSONArray()
-        for (m in messageLog) arr.put(org.json.JSONObject().apply {
-            put("date", m.date); put("text", m.text); put("x", m.x); put("y", m.y)
-        })
-        messageLogFile.writeText(arr.toString())
+        val json = messageLogJson()
+        messageLogFile.writeText(json)
+        messageLogSnapshot = json
     } catch (e: Exception) { android.util.Log.w("Andropolis", "message log save failed", e) }
 }
 
 /** Load the message log saved alongside the private autosave (empty if there is none yet). */
 internal fun MainActivity.loadMessageLog() {
     if (!messageLogFile.exists()) return
-    try {
-        val arr = org.json.JSONArray(messageLogFile.readText())
-        messageLog.clear()
-        for (i in 0 until arr.length()) {
-            val o = arr.getJSONObject(i)
-            messageLog.addLast(LogEntry(o.getString("date"), o.getString("text"), o.getInt("x"), o.getInt("y")))
-        }
-    } catch (e: Exception) { android.util.Log.w("Andropolis", "message log load failed", e) }
+    try { applyMessageLogJson(messageLogFile.readText()) }
+    catch (e: Exception) { android.util.Log.w("Andropolis", "message log load failed", e) }
 }
 
 internal fun MainActivity.msgText(i: Int) = messageText.getOrElse(i) { "City update" }

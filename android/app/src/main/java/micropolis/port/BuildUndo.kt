@@ -82,5 +82,6 @@ internal fun MainActivity.resetHistory() {
 internal fun MainActivity.resetHistoryAndMessages() {
     resetHistory()
     messageLog.clear()
+    messageLogSnapshot = null   // don't let an autosave attach the old city's log
     BackgroundScheduler.clearPending(applicationContext)   // stale timeline; don't let it leak into this city
 }
