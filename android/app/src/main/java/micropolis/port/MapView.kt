@@ -15,6 +15,13 @@ private const val ZONEBIT = 0x0400
 private const val PWRBIT = 0x8000
 private const val LIGHTNINGBOLT = 827
 
+// CHURCH1..CHURCH7 (956-1018) are alternate denomination skins the engine picks
+// at random, but the 960-tile atlas only ever shipped art for CHURCH0 (414-422).
+// Pin them to the CHURCH0 art instead of falling off the end of the atlas.
+private const val CHURCH1BASE = 956
+private const val CHURCH7LAST = 1018
+private const val CHURCH0BASE = 414
+
 /**
  * Renderer: draws the 120x100 tile map using the real tile atlas.
  * The atlas is a 256×960 PNG with 16×16 tiles in a 16-column, 60-row grid.
@@ -350,7 +357,11 @@ class MapView(context: Context) : View(context) {
             val base = x * rows
             for (y in 0 until rows) {
                 val tileIdx = tiles[base + y].toInt() and 0x03FF
-                val idx = if (tileIdx >= 960) 0 else tileIdx
+                val idx = when {
+                    tileIdx in CHURCH1BASE..CHURCH7LAST -> CHURCH0BASE + (tileIdx - CHURCH1BASE) % 9
+                    tileIdx >= 960 -> 0
+                    else -> tileIdx
+                }
                 val col = idx % 16
                 val row = idx / 16
                 srcRect.set(col * 16, row * 16, col * 16 + 16, row * 16 + 16)
