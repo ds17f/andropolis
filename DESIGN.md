@@ -553,14 +553,24 @@ Concrete choices on top of 12.4 — this is what the code does.
   the live tick loop, save the live city as the anchor with `rng = get_rng(live)`, probe
   on a worker thread, set one alarm (`setExactAndAllowWhileIdle` when exact alarms are
   allowed, else `setAndAllowWhileIdle`).
-- **Alarm (`BackgroundAlarmReceiver`, `goAsync` + worker thread):** replay anchor → stop
-  tick, save that as the new anchor (`rng` = state after replay), post the notification.
-  Pause group → `bgPaused = true`, no new alarm. Notify-only → re-anchor at "now", probe
-  again, arm again.
-- **On foreground (`onStart`):** cancel the alarm. If `bgActive`: replay the anchor for
-  `min(elapsed * ticksPerMs, pendTicks)` ticks (0 if paused at the event) into the live
-  engine, drop the catch-up events (they are logged to Messages), clear `bgActive`. If
-  paused at an event: set the game to Paused and centre on the event tile.
+- **Alarm (`BackgroundAlarmReceiver`, `goAsync` + worker thread):** notify-only stop →
+  replay anchor → stop tick in a fresh engine, save that as the new anchor (`rng` = state
+  after replay), post the notification, re-anchor at "now", probe and arm again. Messages
+  seen during that replay are stashed in a small pending-messages file (`bg_messages.json`,
+  capped at 50), since that replay happens in a fresh engine the live one never sees.
+  Pause group → do **not** replay or re-anchor: the .cty format does not save sprites
+  (tornado, monster, plane/ship/train/helicopter crash), and loading one destroys any
+  live sprites, so re-anchoring at the event would make it look empty on return. Just
+  post the notification and set `bgPaused = true`, leaving the anchor/rng/`pendTicks`
+  exactly as the probe left them.
+- **On foreground (`onStart`):** cancel the alarm, reach any overdue stops first (no
+  notification). If `bgActive`: if paused at an event, replay the anchor for the full
+  `pendTicks` (the same ticks the probe used to find the stop) into the live engine, so
+  it lands on the event tick with the sprite alive and the event message delivered
+  through the normal event queue; otherwise replay `min(elapsed * ticksPerMs, pendTicks)`
+  ticks. Log the pending-messages file's entries (oldest first) followed by this
+  replay's caught events (each with its own date), clear the pending file, clear
+  `bgActive`. If paused at an event: set the game to Paused and centre on the event tile.
 - **Reboot (`BOOT_COMPLETED`):** re-arm the stored pending alarm.
 - Not in 057: the WorkManager safety net (12.11) — needs a new dependency; later.
 - Manifest: `RECEIVE_BOOT_COMPLETED`, `USE_EXACT_ALARM` (API 33+) and

@@ -19,14 +19,17 @@ internal fun MainActivity.startBackgroundPlay() {
     }
 }
 
+/** A message event seen while catching up, with the date it actually happened on. */
+private class CaughtMsg(val msg: Int, val x: Int, val y: Int, val date: String)
+
 internal fun MainActivity.resumeFromBackgroundPlay() {
     val ctx = applicationContext
     Notifier.cancelPaused(ctx)
     if (!simSuspended && !BackgroundScheduler.isActive(ctx)) return
     sim.post {
-        val caught = ArrayList<Triple<Int, Int, Int>>()          // (message, x, y) seen while catching up
-        val res = if (handle != 0L) BackgroundScheduler.resume(ctx, handle) { e ->
-            if (e[0] == 0) caught.add(Triple(e[3], e[1], e[2]))
+        val caught = ArrayList<CaughtMsg>()          // seen while catching up the live engine
+        val res = if (handle != 0L) BackgroundScheduler.resume(ctx, handle) { e, year, month ->
+            if (e[0] == 0) caught.add(CaughtMsg(e[3], e[1], e[2], dateTextFor(year, month)))
         } else null
         // Pause on the sim thread, before simSuspended is released, so tickLoop() (also sim
         // thread) cannot see "not suspended, still at the old speed" and tick past the event
@@ -37,10 +40,13 @@ internal fun MainActivity.resumeFromBackgroundPlay() {
         MicropolisNative.saveCity(handle, autosavePath)
         val st = IntArray(10); MicropolisNative.getStats(handle, st)
         val away = (st[4] * 12 + st[5]) - prefs.getInt("bgLeftMonth", st[4] * 12 + st[5])
-        val caughtDate = dateTextFor(st[4], st[5])   // the live dateText field is not refreshed yet
         ui.post {
             resetHistory()                                       // the city moved on; old undo no longer applies
-            for ((m, x, y) in caught) logMessage(GameText.messages.getOrElse(m) { "City event" }, x, y, caughtDate)
+            // Pending first (oldest first — logMessage addFirst's each one), then live-caught,
+            // so the newest of all of them ends up on top.
+            for (m in res.pending) logMessage("${msgIcon(m.msg)}  ${msgText(m.msg)}", m.x, m.y, dateTextFor(m.year, m.month))
+            for (m in caught) logMessage("${msgIcon(m.msg)}  ${msgText(m.msg)}", m.x, m.y, m.date)
+            saveMessageLog()
             if (res.paused) {
                 updatePlayPauseText(); updateSpeedChipText()
                 if (res.x >= 0) mapView.zoomToTile(res.x, res.y)

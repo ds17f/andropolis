@@ -82,4 +82,5 @@ internal fun MainActivity.resetHistory() {
 internal fun MainActivity.resetHistoryAndMessages() {
     resetHistory()
     messageLog.clear()
+    BackgroundScheduler.clearPending(applicationContext)   // stale timeline; don't let it leak into this city
 }

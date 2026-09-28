@@ -34,8 +34,9 @@ object BackgroundSim {
             lastMonth = stats[4] * 12 + stats[5]
         }
 
-        /** Advance one tick; onEvent sees each engine event (ev = [type, x, y, a, …]). */
-        fun tick(onEvent: (IntArray) -> Unit) {
+        /** Advance one tick; onEvent sees each engine event (ev = [type, x, y, a, …]) plus
+         *  the game year/month it fired in (stats are current right after simTick). */
+        fun tick(onEvent: (IntArray, Int, Int) -> Unit) {
             MicropolisNative.simTick(h)
             MicropolisNative.getStats(h, stats)
             val monthKey = stats[4] * 12 + stats[5]
@@ -44,7 +45,7 @@ object BackgroundSim {
                 if (kind >= 0) MicropolisNative.makeDisaster(h, kind)
                 lastMonth = monthKey
             }
-            while (MicropolisNative.pollEvent(h, ev)) onEvent(ev)
+            while (MicropolisNative.pollEvent(h, ev)) onEvent(ev, stats[4], stats[5])
         }
 
         val year get() = stats[4]
@@ -75,7 +76,7 @@ object BackgroundSim {
             var stop: Stop? = null
             var n = 0
             while (n < HORIZON_TICKS && stop == null) {
-                t.tick { e ->
+                t.tick { e, _, _ ->
                     if (stop != null || e[0] != 0) return@tick           // messages only
                     val msg = e[3]
                     val g = Notifier.groupForMessage(msg) ?: return@tick
@@ -103,22 +104,27 @@ object BackgroundSim {
 
     /**
      * Replay `ticks` ticks from the anchor into engine `h` (a fresh one or the live one).
-     * onEvent sees each engine event. Returns the PRNG state afterwards (the next anchor's).
+     * onEvent sees each engine event plus the year/month it fired in. Returns the PRNG
+     * state afterwards (the next anchor's).
      */
     fun replayInto(h: Long, p: SharedPreferences, path: String, rng: Long, ticks: Int,
-                   onEvent: (IntArray) -> Unit = {}): Long? {
+                   onEvent: (IntArray, Int, Int) -> Unit = { _, _, _ -> }): Long? {
         if (MicropolisNative.loadCitySeeded(h, path, rng) != 1) return null
         val t = Timeline(h, rng, disasterFreq(p))
         repeat(ticks) { t.tick(onEvent) }
         return MicropolisNative.getRng(h)
     }
 
-    /** Replay `ticks` ticks in a fresh engine and save the result to `out`. Returns the new PRNG state. */
-    fun replayToFile(p: SharedPreferences, path: String, rng: Long, ticks: Int, out: String): Long? {
+    /** Replay `ticks` ticks in a fresh engine and save the result to `out`. onEvent sees every
+     *  engine event, unfiltered (this fresh engine's replay is never seen by the live one, so
+     *  callers wanting only MESSAGE events must filter for ev[0] == 0 themselves). Returns the
+     *  new PRNG state. */
+    fun replayToFile(p: SharedPreferences, path: String, rng: Long, ticks: Int, out: String,
+                      onEvent: (IntArray, Int, Int) -> Unit = { _, _, _ -> }): Long? {
         val h = MicropolisNative.create()
         MicropolisNative.init(h)
         try {
-            val r = replayInto(h, p, path, rng, ticks) ?: return null
+            val r = replayInto(h, p, path, rng, ticks, onEvent) ?: return null
             return if (MicropolisNative.saveCity(h, out) == 1) r else null
         } finally {
             MicropolisNative.destroy(h)

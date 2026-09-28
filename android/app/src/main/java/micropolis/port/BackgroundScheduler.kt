@@ -33,8 +33,13 @@ object BackgroundScheduler {
 
     private val lock = Any()   // one timeline operation at a time (alarm vs foreground)
 
+    /** A message seen during a reachStop() replay (fresh engine, so it can't reach the
+     *  live one) — persisted so it isn't lost before the player returns. */
+    class PendingMsg(val msg: Int, val x: Int, val y: Int, val year: Int, val month: Int)
+
     fun prefs(ctx: Context): SharedPreferences = ctx.getSharedPreferences("micropolis", Context.MODE_PRIVATE)
     fun anchorFile(ctx: Context) = File(ctx.filesDir, "bg_anchor.cty")
+    fun pendingFile(ctx: Context) = File(ctx.filesDir, "bg_messages.json")
     fun isActive(ctx: Context) = prefs(ctx).getBoolean(K_ACTIVE, false)
 
     /** Engine ticks per real millisecond at the chosen pace. */
@@ -48,6 +53,7 @@ object BackgroundScheduler {
      * the live city and `rng` the live PRNG state. Worker thread.
      */
     fun start(ctx: Context, rng: Long, nowMs: Long) = synchronized(lock) {
+        clearPending(ctx)   // a fresh session; any leftover pending messages are for a stale timeline
         prefs(ctx).edit().putBoolean(K_ACTIVE, true).putBoolean(K_PAUSED, false)
             .putLong(K_RNG, rng).putLong(K_MS, nowMs).commit()
         probeAndArm(ctx)
@@ -86,27 +92,43 @@ object BackgroundScheduler {
 
     /**
      * The pending stop has been reached (alarm, or found overdue on foreground).
-     * Replay to it, make it the new anchor, notify, and either pause or look ahead again.
+     *
+     * Pausing stop: do NOT replay or advance the anchor — sprites (tornado, monster,
+     * crash explosions) are not saved in a .cty, and loading one destroys them, so
+     * re-anchoring here would make the event look empty when the player returns. Just
+     * notify and set bgPaused; the anchor/rng/ticks are left as-is so resume() can replay
+     * the exact same deterministic path into the LIVE engine and land on the event with
+     * the sprite alive. Non-pausing stop: replay to it in a fresh engine and re-anchor,
+     * same as before, stashing any messages seen along the way (they'd otherwise be lost —
+     * that replay never touches the live engine).
      */
     fun reachStop(ctx: Context, notify: Boolean = true) = synchronized(lock) {
         val p = prefs(ctx)
         if (!p.getBoolean(K_ACTIVE, false) || p.getBoolean(K_PAUSED, false)) return@synchronized
-        val anchor = anchorFile(ctx)
-        val tmp = File(ctx.filesDir, "bg_next.cty")
-        val ticks = p.getInt(K_TICKS, 0)
-        val rng = BackgroundSim.replayToFile(p, anchor.path, p.getLong(K_RNG, 0L), ticks, tmp.path)
-        if (rng == null || !tmp.renameTo(anchor)) { Log.w(TAG, "replay failed"); clear(ctx); return@synchronized }
-        val at = p.getLong(K_AT, System.currentTimeMillis())
-        p.edit().putLong(K_RNG, rng).putLong(K_MS, at).putInt(K_TICKS, 0).commit()
-
         val g = BackgroundPrefs.GROUPS.firstOrNull { it.id == p.getString(K_GROUP, null) }
+        val pausing = g != null && p.getBoolean(K_PAUSE, false)
+
+        if (!pausing) {
+            val anchor = anchorFile(ctx)
+            val tmp = File(ctx.filesDir, "bg_next.cty")
+            val ticks = p.getInt(K_TICKS, 0)
+            val collected = ArrayList<PendingMsg>()
+            val rng = BackgroundSim.replayToFile(p, anchor.path, p.getLong(K_RNG, 0L), ticks, tmp.path) { ev, year, month ->
+                if (ev[0] == 0) collected.add(PendingMsg(ev[3], ev[1], ev[2], year, month))
+            }
+            if (rng == null || !tmp.renameTo(anchor)) { Log.w(TAG, "replay failed"); clear(ctx); return@synchronized }
+            val at = p.getLong(K_AT, System.currentTimeMillis())
+            p.edit().putLong(K_RNG, rng).putLong(K_MS, at).putInt(K_TICKS, 0).commit()
+            appendPending(ctx, collected)
+        }
+
         if (g != null) {
             val msg = p.getInt(K_MSG, 0)
             if (msg > 0) p.edit().putInt(BackgroundSim.cooldownKey(msg), p.getInt(K_CITYTIME, 0)).commit()
             if (notify) Notifier.post(ctx, g, p.getString(K_TITLE, "") ?: "",
                 cityLine(p), p.getInt(K_X, -1), p.getInt(K_Y, -1))
         }
-        if (g != null && p.getBoolean(K_PAUSE, false)) {
+        if (pausing) {
             p.edit().putBoolean(K_PAUSED, true).commit()          // wait for the player
             Log.i(TAG, "paused at ${p.getString(K_TITLE, "")}")
         } else {
@@ -119,14 +141,51 @@ object BackgroundScheduler {
         return "$name — tap to see it"
     }
 
+    /** Append to the pending-messages file, newest 50 kept. Caller holds the lock. */
+    private fun appendPending(ctx: Context, add: List<PendingMsg>) {
+        if (add.isEmpty()) return
+        val list = readPending(ctx).toMutableList()
+        list.addAll(add)
+        while (list.size > 50) list.removeAt(0)          // drop oldest first
+        val arr = org.json.JSONArray()
+        for (m in list) arr.put(org.json.JSONObject().apply {
+            put("msg", m.msg); put("x", m.x); put("y", m.y); put("year", m.year); put("month", m.month)
+        })
+        try { pendingFile(ctx).writeText(arr.toString()) }
+        catch (e: Exception) { Log.w(TAG, "pending messages save failed", e) }
+    }
+
+    private fun readPending(ctx: Context): List<PendingMsg> {
+        val f = pendingFile(ctx)
+        if (!f.exists()) return emptyList()
+        return try {
+            val arr = org.json.JSONArray(f.readText())
+            (0 until arr.length()).map {
+                val o = arr.getJSONObject(it)
+                PendingMsg(o.getInt("msg"), o.getInt("x"), o.getInt("y"), o.getInt("year"), o.getInt("month"))
+            }
+        } catch (e: Exception) { emptyList() }
+    }
+
+    /** Read and clear the pending-messages file (resume() has folded them into the log). */
+    fun takePending(ctx: Context): List<PendingMsg> {
+        val list = readPending(ctx)
+        if (list.isNotEmpty()) pendingFile(ctx).delete()
+        return list
+    }
+
+    /** Drop any pending background messages — the timeline they belonged to no longer applies. */
+    fun clearPending(ctx: Context) { pendingFile(ctx).delete() }
+
     /**
      * The player is back. Bring the live engine `h` to "now" on the background timeline.
      * Runs on the sim thread. Returns the event to show (x, y, paused) or null if background
      * play was not active.
      */
-    class Resume(val paused: Boolean, val x: Int, val y: Int, val title: String, val caughtUpTicks: Int)
+    class Resume(val paused: Boolean, val x: Int, val y: Int, val title: String, val caughtUpTicks: Int,
+                 val pending: List<PendingMsg>)
 
-    fun resume(ctx: Context, h: Long, onEvent: (IntArray) -> Unit): Resume? {
+    fun resume(ctx: Context, h: Long, onEvent: (IntArray, Int, Int) -> Unit): Resume? {
         if (!isActive(ctx)) return null
         cancelAlarm(ctx)
         val now = System.currentTimeMillis()
@@ -141,12 +200,17 @@ object BackgroundScheduler {
         synchronized(lock) {
             val p = prefs(ctx)
             val paused = p.getBoolean(K_PAUSED, false)
+            // Paused: replay the SAME ticks the probe used to find the event, into the LIVE
+            // engine, so it lands on the event tick with sprites (tornado, …) alive — reachStop()
+            // deliberately left the anchor/ticks untouched for a pausing stop (see reachStop()).
             val elapsed = (now - p.getLong(K_MS, now)).coerceAtLeast(0)
-            val ticks = if (paused) 0
+            val ticks = if (paused) p.getInt(K_TICKS, 0)
                         else minOf((elapsed * ticksPerMs(p)).toLong(), (p.getInt(K_TICKS, 0) - 1).toLong())
                              .coerceAtLeast(0).toInt()
             val r = BackgroundSim.replayInto(h, p, anchorFile(ctx).path, p.getLong(K_RNG, 0L), ticks, onEvent)
-            val res = Resume(paused, p.getInt(K_X, -1), p.getInt(K_Y, -1), p.getString(K_TITLE, "") ?: "", ticks)
+            val pending = takePending(ctx)   // messages from earlier reachStop() replays (fresh engines)
+            val res = Resume(paused, p.getInt(K_X, -1), p.getInt(K_Y, -1), p.getString(K_TITLE, "") ?: "",
+                              ticks, pending)
             // The player is looking at the app now (paused at the event, or caught up past it) —
             // any event notification still showing is stale, so clear all of them. K_GROUP alone
             // is not reliable here: catch-up may have overwritten it with a later, not-yet-notified
