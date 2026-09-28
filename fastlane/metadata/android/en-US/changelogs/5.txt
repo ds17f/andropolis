@@ -1,0 +1,1 @@
+Background play: tap a notification to see its event (for example, a tornado), paused and zoomed in. The Messages panel now shows the events that occurred while the app was closed.
