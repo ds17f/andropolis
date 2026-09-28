@@ -14,9 +14,9 @@ RepoType: git
 Repo: https://github.com/ds17f/andropolis.git
 
 Builds:
-  - versionName: 0.1.2
-    versionCode: 3
-    commit: 3615c6649bcc51f586a240e1d90c77eef469eff3
+  - versionName: 0.1.3
+    versionCode: 4
+    commit: 1a5375e7e34d7f5f7ad2036a2e8209643cc67f02
     subdir: android/app
     submodules: true
     gradle:
@@ -27,5 +27,5 @@ Builds:
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 0.1.2
-CurrentVersionCode: 3
+CurrentVersion: 0.1.3
+CurrentVersionCode: 4
