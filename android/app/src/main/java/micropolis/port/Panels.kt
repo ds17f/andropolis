@@ -244,7 +244,7 @@ internal fun MainActivity.showSimulationPanel() {
 }
 
 internal fun MainActivity.showOverlayPanel() {
-    val glyphs = arrayOf("⊘","👥","🚗","☁","💲","🚨","📈","⚡")
+    val glyphs = arrayOf("⊘","👥","🚗","☁","💲","🚨","📈","⚡","🚒","👮")
     showPanel("Map overlay", listOf(PanelTab("Mode") {
         val grid = android.widget.GridLayout(this).apply { columnCount = 4 }
         val handles = ArrayList<CardHandle>()
@@ -252,6 +252,7 @@ internal fun MainActivity.showOverlayPanel() {
         overlayNames.forEachIndexed { kind, name ->
             val h = panelCard(glyphs.getOrElse(kind) { "•" }, name) {
                 currentOverlay = kind; overlayState.text = name
+                overlayLegend.show(kind, name)
                 if (kind == 0) mapView.setOverlay(0, null)
                 select(kind)
             }

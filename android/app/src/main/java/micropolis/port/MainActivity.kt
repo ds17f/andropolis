@@ -117,7 +117,8 @@ class MainActivity : AppCompatActivity() {
     internal var strokeMaxX = -1; internal var strokeMaxY = -1
     internal var currentOverlay = 0
     internal val overlayBuf = ByteArray(120 * 100)
-    internal val overlayNames = arrayOf("Off","Population","Traffic","Pollution","Land value","Crime","Growth","Power")
+    internal val overlayNames = arrayOf("Off","Population","Traffic","Pollution","Land value","Crime","Growth","Power","Fire","Police")
+    internal lateinit var overlayLegend: OverlayLegend
     internal var annualReportEnabled = true
     @Volatile internal var lastReportYear = -1
     @Volatile internal var lastReportFunds = -1        // for the annual-report funds delta

@@ -111,6 +111,13 @@ internal fun MainActivity.buildLayout() {
             gravity = android.view.Gravity.TOP or android.view.Gravity.START
             setMargins(dp(8), dp(8), dp(8), 0)
         })
+    overlayLegend = OverlayLegend(this)
+    mapContainer.addView(overlayLegend, android.widget.FrameLayout.LayoutParams(
+        android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+        android.widget.FrameLayout.LayoutParams.WRAP_CONTENT).apply {
+            gravity = android.view.Gravity.BOTTOM or android.view.Gravity.START
+            setMargins(dp(8), 0, 0, dp(8))
+        })
     root.addView(mapContainer, LinearLayout.LayoutParams(
         LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 

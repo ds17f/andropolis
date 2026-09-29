@@ -66,16 +66,7 @@ class MapView(context: Context) : View(context) {
     private var overlayMode = 0                 // 0 == off
     private var overlayData: ByteArray? = null
     private val overlayPaint = Paint()
-    // intensity 0..255 -> ARGB heat colour (transparent at 0, green→yellow→red as it rises)
-    private val heatLut = IntArray(256) { i ->
-        if (i == 0) 0 else {
-            val t = i / 255f
-            val r = (255 * kotlin.math.min(1f, t * 2f)).toInt()
-            val g = (255 * kotlin.math.min(1f, (1f - t) * 2f)).toInt()
-            val a = (60 + 140 * t).toInt().coerceIn(0, 200)
-            (a shl 24) or (r shl 16) or (g shl 8)
-        }
-    }
+    private val heatLut = HEAT_LUT
 
     fun setOverlay(mode: Int, data: ByteArray?) {
         overlayMode = mode

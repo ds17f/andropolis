@@ -288,6 +288,16 @@ int micropolis_copy_overlay(const MicropolisEngine *e, int overlay, unsigned cha
                 case MICROPOLIS_OVERLAY_POWER:
                     val = e->sim->powerGridMap.worldGet(x, y) ? 255 : 0;
                     break;
+                case MICROPOLIS_OVERLAY_FIRE: {
+                    int v = e->sim->fireStationEffectMap.worldGet(x, y);
+                    val = (unsigned char)(v < 0 ? 0 : (v > 255 ? 255 : v));
+                    break;
+                }
+                case MICROPOLIS_OVERLAY_POLICE: {
+                    int v = e->sim->policeStationEffectMap.worldGet(x, y);
+                    val = (unsigned char)(v < 0 ? 0 : (v > 255 ? 255 : v));
+                    break;
+                }
                 default:
                     val = 0;
                     break;

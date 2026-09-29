@@ -169,7 +169,9 @@ typedef enum MicropolisOverlay {
     MICROPOLIS_OVERLAY_LANDVALUE  = 4,  /* landValueMap        (half res)  */
     MICROPOLIS_OVERLAY_CRIME      = 5,  /* crimeRateMap        (half res)  */
     MICROPOLIS_OVERLAY_GROWTH     = 6,  /* rateOfGrowthMap     (1/8 res)   */
-    MICROPOLIS_OVERLAY_POWER      = 7   /* powerGridMap        (full res)  */
+    MICROPOLIS_OVERLAY_POWER      = 7,  /* powerGridMap        (full res)  */
+    MICROPOLIS_OVERLAY_FIRE       = 8,  /* fireStationEffectMap   (1/8 res) */
+    MICROPOLIS_OVERLAY_POLICE     = 9   /* policeStationEffectMap (1/8 res) */
 } MicropolisOverlay;
 /*
  * Fill dst (dst_len must be >= W*H == 12000) COLUMN-MAJOR (dst[x*H + y]) with an
