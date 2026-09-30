@@ -1,0 +1,1 @@
+New difficulty setting for a new map: Easy, Medium or Hard. Random disasters are less frequent (Normal: about one in 10 game years). City names keep accented letters, for example é, ě, á and ď. How to play has new Disasters and Difficulty sections.
