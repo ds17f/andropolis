@@ -170,6 +170,10 @@ void micropolis_set_city_tax(MicropolisEngine *e, int tax) {
 void micropolis_set_game_level(MicropolisEngine *e, int level) {
     if (e) {
         e->sim->setGameLevel(GameLevel(level));
+        // saveFile writes miscHist[15] as the level, but only setValves() (a sim
+        // tick) copies gameLevel there. Copy it now so a save right after this
+        // call (the new-map autosave) keeps the new level.
+        e->sim->miscHist[15] = short(level);
     }
 }
 
