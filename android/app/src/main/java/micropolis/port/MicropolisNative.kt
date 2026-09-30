@@ -107,6 +107,9 @@ object MicropolisNative {
     /** Turn the engine's own random disasters on (1) or off (0); manual makeDisaster still works. */
     external fun setEnableDisasters(handle: Long, on: Int)
 
+    /** Game level: 0 Easy, 1 Medium, 2 Hard. Saved in the .cty. */
+    external fun setGameLevel(handle: Long, level: Int)
+
     /**
      * Dequeue one engine event into out (length >= 9):
      * [type, x, y, a, b, c, d, e, f]. Returns true if an event was written, false

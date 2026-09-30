@@ -222,6 +222,11 @@ Java_micropolis_port_MicropolisNative_setAutoBudget(JNIEnv *, jobject, jlong h, 
     micropolis_set_auto_budget(eng(h), on);
 }
 
+JNIEXPORT void JNICALL
+Java_micropolis_port_MicropolisNative_setGameLevel(JNIEnv *, jobject, jlong h, jint level) {
+    micropolis_set_game_level(eng(h), level);
+}
+
 JNIEXPORT jboolean JNICALL
 Java_micropolis_port_MicropolisNative_pollEvent(JNIEnv *env, jobject, jlong h, jintArray out) {
     if (env->GetArrayLength(out) < 9) return JNI_FALSE;

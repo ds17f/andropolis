@@ -17,8 +17,8 @@ internal fun MainActivity.showNewGame(resume: () -> Unit) {
     val content = FrameLayout(this)
     val pages = ArrayList<View>()
 
-    // Tab 0: New map (scrolls: four option rows + the button are taller than the sheet)
-    val lastSelected = IntArray(4) { -1 }       // chosen card index per option
+    // Tab 0: New map (scrolls: five option rows + the button are taller than the sheet)
+    val lastSelected = IntArray(5) { -1 }       // chosen card index per option
     val optionValues = ArrayList<IntArray>()     // terrain value per card, per option
     pages.add(LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
@@ -26,7 +26,8 @@ internal fun MainActivity.showNewGame(resume: () -> Unit) {
             Triple("Trees", arrayOf("None", "Some", "Lots"), intArrayOf(0, -1, 250)),
             Triple("Lakes", arrayOf("None", "Some", "Lots"), intArrayOf(0, -1, 20)),
             Triple("River", arrayOf("None", "Yes"), intArrayOf(0, -1)),
-            Triple("Island", arrayOf("Never", "Sometimes", "Always"), intArrayOf(0, -1, 1))
+            Triple("Island", arrayOf("Never", "Sometimes", "Always"), intArrayOf(0, -1, 1)),
+            Triple("Difficulty", arrayOf("Easy", "Medium", "Hard"), intArrayOf(0, 1, 2))
         )
         val treeGlyph = "🌲"
         val lakeGlyph = "💧"
@@ -62,6 +63,7 @@ internal fun MainActivity.showNewGame(resume: () -> Unit) {
                     1 -> lakeGlyph
                     2 -> riverGlyph
                     3 -> islandGlyph
+                    4 -> "⭐"
                     else -> "•"
                 }
                 val h = panelCard(glyph, choice) {
@@ -70,7 +72,7 @@ internal fun MainActivity.showNewGame(resume: () -> Unit) {
                 handles.add(h)
                 addCard(grid, h)
             }
-            select(if (choices.size == 2) 1 else 1)
+            select(if (idx == 4) 0 else 1)          // Difficulty starts on Easy
             addView(grid)
             addView(View(this@showNewGame).apply {
                 setBackgroundColor(0x1FFFFFFF)
@@ -91,8 +93,8 @@ internal fun MainActivity.showNewGame(resume: () -> Unit) {
             setOnClickListener {
                 started = true
                 sheet.dismiss()
-                val v = IntArray(4) { optionValues[it][lastSelected[it]] }
-                startNewMap(v[0], v[1], v[2], v[3], resume)
+                val v = IntArray(5) { optionValues[it][lastSelected[it]] }
+                startNewMap(v[0], v[1], v[2], v[3], v[4], resume)
             }
         }
         addView(genBtn)

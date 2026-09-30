@@ -41,14 +41,16 @@ private fun MainActivity.adoptCity(name: String, onDone: () -> Unit) {
 /**
  * A new generated map. Terrain values as MicropolisNative.setTerrain (-1 = random).
  * Asks for the city name afterwards.
+ * level: 0 Easy, 1 Medium, 2 Hard (sets the starting money too).
  */
-internal fun MainActivity.startNewMap(trees: Int, lakes: Int, river: Int, island: Int, onDone: () -> Unit) {
+internal fun MainActivity.startNewMap(trees: Int, lakes: Int, river: Int, island: Int, level: Int, onDone: () -> Unit) {
     cityReady = false
     sim.post {
         MicropolisNative.setTerrain(handle, trees, lakes, river, island)
         MicropolisNative.generateRandomCity(handle)
         resetReportBaselines()
-        MicropolisNative.setFunds(handle, 20_000)          // generating keeps the old city's money; Easy start
+        MicropolisNative.setGameLevel(handle, level)
+        MicropolisNative.setFunds(handle, intArrayOf(20_000, 10_000, 5_000)[level])   // generating keeps the old city's money
         MicropolisNative.saveCity(handle, autosavePath)   // reset autosave to the new city
         cityReady = true
         ui.post {
