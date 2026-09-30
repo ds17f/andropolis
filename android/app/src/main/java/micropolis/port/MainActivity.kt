@@ -57,7 +57,7 @@ class MainActivity : AppCompatActivity() {
     internal val messageLogFile by lazy { java.io.File(filesDir, "messages.json") }
     @Volatile internal var messageLogSnapshot: String? = null   // last JSON saveMessageLog() wrote (ui thread); publicAutosave (sim thread) reads it, up to 30 s stale
     internal val prefs by lazy { getSharedPreferences("micropolis", MODE_PRIVATE) }
-    internal fun sanitize(name: String) = name.trim().replace(Regex("[^A-Za-z0-9 _-]"), "").ifEmpty { "City" }
+    internal fun sanitize(name: String) = name.trim().replace(Regex("[^\\p{L}\\p{M}\\p{N} _-]"), "").ifEmpty { "City" }
     internal var cityName: String = "My City"
     @Volatile internal var cityReady = false      // true once a city exists (guard autosave)
     internal var lastAutosaveMs = 0L          // internal resume file (autosave.cty), every 30 s
