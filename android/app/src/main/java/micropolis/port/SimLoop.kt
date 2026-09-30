@@ -133,11 +133,8 @@ internal fun MainActivity.tickLoop() {
     val monthKey = year * 12 + month
     if (monthKey != lastDisasterMonth) {
         if (lastDisasterMonth != -1 && disasterFreq > 0 && speed != 0) {
-            if (random.nextInt(disasterYearsPer[disasterFreq] * 12) == 0) {
-                // weight like the original: fires most common, meltdown rarest
-                val kind = intArrayOf(0, 0, 1, 2, 3, 4, 0, 5)[random.nextInt(8)]
-                MicropolisNative.makeDisaster(handle, kind)
-            }
+            val kind = DisasterRoll.roll(random.nextLong(), monthKey, disasterFreq)
+            if (kind >= 0) MicropolisNative.makeDisaster(handle, kind)
         }
         lastDisasterMonth = monthKey
     }

@@ -6,7 +6,9 @@ package micropolis.port
  * probe and the replay of a timeline to roll the same disasters.
  */
 object DisasterRoll {
-    private val yearsPer = intArrayOf(0, 10, 5, 1)          // average years between disasters
+    /** Average game years between random disasters, per frequency (Off, Rare, Normal, Frequent).
+     *  The help page (assets/manual/tips.html, "Disasters") shows these numbers. Change both together. */
+    val yearsPer = intArrayOf(0, 20, 10, 3)
     private val kinds = intArrayOf(0, 0, 1, 2, 3, 4, 0, 5)   // fires most common, meltdown rarest
 
     /** The disaster kind for this game month (MicropolisNative.makeDisaster), or -1 for none. */

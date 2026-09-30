@@ -65,7 +65,6 @@ class MainActivity : AppCompatActivity() {
     internal var pickerResume: () -> Unit = {}
     internal var disasterFreq = 2                                  // 0 Off, 1 Rare, 2 Normal, 3 Frequent
     internal val disasterFreqNames = arrayOf("Off", "Rare", "Normal", "Frequent")
-    internal val disasterYearsPer = intArrayOf(0, 10, 5, 1)        // average years between disasters
     internal var lastDisasterMonth = -1
     internal val random = java.util.Random()
 
